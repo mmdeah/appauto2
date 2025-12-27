@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { ArrowLeft, Calendar, User, Camera, Save, RefreshCw, CheckCircle2, FileText, ChevronLeft, ChevronRight } from "lucide-react"
-import { getServiceOrderById, getVehicles, getUsers, getStateHistoryByOrderId, saveServiceOrder } from "@/lib/storage"
+// Las funciones ahora se importan dinámicamente desde lib/db para usar la API
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, getNextState, getPreviousState } from "@/lib/utils-service"
 import type { ServiceOrder, Vehicle, User as UserType, StateHistory, ServiceState } from "@/lib/types"
 import { useAuth } from "@/lib/auth-context"
