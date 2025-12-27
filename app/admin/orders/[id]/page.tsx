@@ -103,9 +103,21 @@ export default function AdminOrderDetailPage() {
         return
       }
 
+      console.log("📦 Orden cargada:", orderData)
+      console.log("🚗 Vehículos disponibles:", vehicles.length)
+      console.log("👥 Clientes disponibles:", clients.length)
+      console.log("🔍 Buscando vehículo con ID:", orderData.vehicleId)
+      console.log("🔍 Buscando cliente con ID:", orderData.clientId)
+
+      const foundVehicle = vehicles.find((v) => v.id === orderData.vehicleId)
+      const foundClient = clients.find((c) => c.id === orderData.clientId)
+
+      console.log("✅ Vehículo encontrado:", foundVehicle)
+      console.log("✅ Cliente encontrado:", foundClient)
+
       setOrder(orderData)
-      setVehicle(vehicles.find((v) => v.id === orderData.vehicleId) || null)
-      setClient(clients.find((c) => c.id === orderData.clientId) || null)
+      setVehicle(foundVehicle || null)
+      setClient(foundClient || null)
       setTechnician(orderData.technicianId ? users.find((u) => u.id === orderData.technicianId) || null : null)
       setAllTechnicians(users.filter((u) => u.role === "technician"))
       setHistory(historyData.sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime()))
