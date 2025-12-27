@@ -57,7 +57,7 @@ export default function NewOrderPage() {
 
   const [selectedClient, setSelectedClient] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState('');
-  const [selectedTechnician, setSelectedTechnician] = useState('');
+  const [selectedTechnician, setSelectedTechnician] = useState('unassigned');
   const [description, setDescription] = useState('');
 
   const [showNewClient, setShowNewClient] = useState(false);
@@ -95,7 +95,7 @@ export default function NewOrderPage() {
     setVehicles(allVehicles);
     
     // Asignar el primer técnico por defecto si hay técnicos disponibles
-    if (techs.length > 0 && !selectedTechnician) {
+    if (techs.length > 0 && selectedTechnician === 'unassigned') {
       setSelectedTechnician(techs[0].id);
     }
   };
