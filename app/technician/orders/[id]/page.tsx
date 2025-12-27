@@ -118,9 +118,11 @@ export default function TechnicianOrderDetailPage() {
       updatedAt: new Date().toISOString(),
     }
 
-    // Guardar la orden actualizada
-    saveServiceOrder(updatedOrder)
+    // Guardar la orden actualizada usando la API
+    const { saveServiceOrder } = await import("@/lib/db")
+    await saveServiceOrder(updatedOrder)
     setOrder(updatedOrder)
+    await loadData() // Recargar datos para obtener la última versión
 
     // Si el servicio fue marcado como completado, agregar al historial de estados
     if (isNowCompleted) {
@@ -134,7 +136,8 @@ export default function TechnicianOrderDetailPage() {
         })
         
         // Recargar el historial
-        const orderHistory = getStateHistoryByOrderId(order.id)
+        const { getStateHistoryByOrderId } = await import("@/lib/db")
+        const orderHistory = await getStateHistoryByOrderId(order.id)
         setHistory(orderHistory.sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime()))
       } catch (error) {
         console.error("[v0] Error al guardar historial:", error)
