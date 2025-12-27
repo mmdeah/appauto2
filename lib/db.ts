@@ -1,6 +1,5 @@
-// NOTE: This file is designed for client components only
-// It uses localStorage via storage.ts functions
-// Server components should use db-server.ts for Supabase operations
+// NOTE: This file now uses API Routes that connect to JSON Server
+// API Routes handle the connection to the JSON Server backend
 import type {
   User,
   Client,
@@ -11,219 +10,289 @@ import type {
   Quotation,
   DashboardStats,
   Revenue,
-  Report, // Added Report export
+  Report,
 } from "./types"
-import {
-  getUsers as storageGetUsers,
-  getUserByEmail as storageGetUserByEmail,
-  saveUser as storageSaveUser,
-  getVehicles as storageGetVehicles,
-  getVehiclesByClientId as storageGetVehiclesByClientId,
-  getVehicleByLicensePlate as storageGetVehicleByLicensePlate,
-  saveVehicle as storageSaveVehicle,
-  getServiceOrders as storageGetServiceOrders,
-  getServiceOrderById as storageGetServiceOrderById,
-  getServiceOrdersByClientId as storageGetServiceOrdersByClientId,
-  getServiceOrdersByVehicleId as storageGetServiceOrdersByVehicleId,
-  getServiceOrdersByTechnicianId as storageGetServiceOrdersByTechnicianId,
-  saveServiceOrder as storageSaveServiceOrder,
-  getStateHistoryByOrderId as storageGetStateHistoryByOrderId,
-  createStateHistory as storageCreateStateHistory,
-  updateQuotation as storageUpdateQuotation,
-  deleteServiceOrder as storageDeleteServiceOrder,
-  getClients as storageGetClients,
-  getClientById as storageGetClientById,
-  getClientByIdNumber as storageGetClientByIdNumber,
-  getClientByEmail as storageGetClientByEmail,
-  saveClient as storageSaveClient,
-  getExpenses as storageGetExpenses,
-  createExpense as storageCreateExpense,
-  deleteExpense as storageDeleteExpense,
-  getRevenues as storageGetRevenues,
-  createRevenue as storageCreateRevenue,
-  getReports as storageGetReports,
-  createReport as storageCreateReport,
-  deleteReport as storageDeleteReport,
-  updateReport as storageUpdateReport,
-} from "./storage"
 
-// This file uses localStorage only - no Supabase imports to avoid next/headers issues
+// URL base de la API (Next.js API Routes)
+const API_BASE = '/api'
+
+// Helper para hacer requests
+async function apiRequest(endpoint: string, options?: RequestInit) {
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+  })
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }))
+    throw new Error(error.error || `API Error: ${response.statusText}`)
+  }
+  
+  return response.json()
+}
 
 // User functions
 export async function getUsers(): Promise<User[]> {
-  // Always use localStorage in client components to avoid importing server modules
-  // Server components should use db-server.ts functions directly
-  return Promise.resolve(storageGetUsers())
+  return apiRequest('/users')
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-  // Always use localStorage in client components
-  const user = storageGetUserByEmail(email)
-  return Promise.resolve(user || null)
+  const users = await getUsers()
+  return users.find(u => u.email === email) || null
 }
 
 export async function saveUser(user: Partial<User> & { email: string; name: string; role: string }): Promise<User> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageSaveUser(user))
+  return apiRequest('/users', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...user,
+      id: user.id || Date.now().toString(),
+      createdAt: user.createdAt || new Date().toISOString(),
+    })
+  })
 }
 
-// Client functions for customer registration without accounts
+// Client functions
 export async function getClients(): Promise<Client[]> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageGetClients())
+  return apiRequest('/clients')
 }
 
 export async function getClientById(id: string): Promise<Client | null> {
-  // Always use localStorage in client components
-  const client = storageGetClientById(id)
-  return Promise.resolve(client || null)
+  const clients = await getClients()
+  return clients.find(c => c.id === id) || null
 }
 
 export async function getClientByIdNumber(idNumber: string): Promise<Client | null> {
-  // Always use localStorage in client components
-  const client = storageGetClientByIdNumber(idNumber)
-  return Promise.resolve(client || null)
+  const clients = await getClients()
+  return clients.find(c => c.idNumber === idNumber) || null
 }
 
 export async function getClientByEmail(email: string): Promise<Client | null> {
-  // Always use localStorage in client components
-  const client = storageGetClientByEmail(email)
-  return Promise.resolve(client || null)
+  const clients = await getClients()
+  return clients.find(c => c.email?.toLowerCase() === email.toLowerCase()) || null
 }
 
 export async function saveClient(client: Client): Promise<Client> {
-  // Always use localStorage in client components
-  storageSaveClient(client)
-  return Promise.resolve(client)
+  return apiRequest('/clients', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...client,
+      id: client.id || Date.now().toString(),
+      createdAt: client.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+  })
 }
 
 // Vehicle functions
 export async function getVehicles(): Promise<Vehicle[]> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageGetVehicles())
+  return apiRequest('/vehicles')
 }
 
 export async function getVehiclesByClientId(clientId: string): Promise<Vehicle[]> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageGetVehiclesByClientId(clientId))
+  const vehicles = await getVehicles()
+  return vehicles.filter(v => v.clientId === clientId)
 }
 
 export async function getVehicleByLicensePlate(licensePlate: string): Promise<Vehicle | null> {
-  // Always use localStorage in client components
-  const vehicle = storageGetVehicleByLicensePlate(licensePlate)
-  return Promise.resolve(vehicle || null)
+  const vehicles = await getVehicles()
+  return vehicles.find(v => v.licensePlate?.toLowerCase() === licensePlate.toLowerCase()) || null
 }
 
 export async function saveVehicle(
-  vehicle: Partial<Vehicle> & { brand: string; model: string; year: number; license_plate: string; client_id: string },
+  vehicle: Partial<Vehicle> & { brand: string; model: string; year: number; licensePlate: string; clientId: string },
 ): Promise<Vehicle> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageSaveVehicle(vehicle))
+  return apiRequest('/vehicles', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...vehicle,
+      id: vehicle.id || Date.now().toString(),
+    })
+  })
 }
 
 // Service Order functions
 export async function getServiceOrders(): Promise<ServiceOrder[]> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageGetServiceOrders())
+  return apiRequest('/orders')
 }
 
 export async function getServiceOrderById(id: string): Promise<ServiceOrder | null> {
-  // Always use localStorage in client components
-  const order = storageGetServiceOrderById(id)
-  return Promise.resolve(order || null)
+  try {
+    return await apiRequest(`/orders/${id}`)
+  } catch {
+    return null
+  }
 }
 
 export async function getServiceOrderByPublicToken(token: string): Promise<ServiceOrder | null> {
-  const { getServiceOrderByPublicToken: storageGetServiceOrderByPublicToken } = await import("./storage")
-  const order = storageGetServiceOrderByPublicToken(token)
-  return Promise.resolve(order || null)
+  const orders = await getServiceOrders()
+  return orders.find(o => o.publicToken === token) || null
 }
 
 export async function getServiceOrdersByClientId(clientId: string): Promise<ServiceOrder[]> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageGetServiceOrdersByClientId(clientId))
+  const orders = await getServiceOrders()
+  return orders.filter(o => o.clientId === clientId)
 }
 
 export async function getServiceOrdersByVehicleId(vehicleId: string): Promise<ServiceOrder[]> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageGetServiceOrdersByVehicleId(vehicleId))
+  const orders = await getServiceOrders()
+  return orders.filter(o => o.vehicleId === vehicleId)
 }
 
 export async function getServiceOrdersByTechnicianId(technicianId: string): Promise<ServiceOrder[]> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageGetServiceOrdersByTechnicianId(technicianId))
+  const orders = await getServiceOrders()
+  return orders.filter(o => o.technicianId === technicianId)
 }
 
 export async function saveServiceOrder(order: Partial<ServiceOrder>): Promise<ServiceOrder> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageSaveServiceOrder(order))
+  if (order.id) {
+    return apiRequest(`/orders/${order.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        ...order,
+        updatedAt: new Date().toISOString(),
+      })
+    })
+  } else {
+    return apiRequest('/orders', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...order,
+        id: order.id || Date.now().toString(),
+        createdAt: order.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+    })
+  }
 }
 
 export async function updateServiceOrder(id: string, updates: Partial<ServiceOrder>): Promise<ServiceOrder | null> {
-  // Always use localStorage in client components
-  const order = storageGetServiceOrderById(id)
-  if (!order) return null
+  try {
+    const order = await getServiceOrderById(id)
+    if (!order) return null
+    
+    return apiRequest(`/orders/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        ...order,
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      })
+    })
+  } catch {
+    return null
+  }
+}
 
-  const updatedOrder = { ...order, ...updates }
-  return Promise.resolve(storageSaveServiceOrder(updatedOrder))
+export async function deleteServiceOrder(id: string): Promise<void> {
+  await apiRequest(`/orders/${id}`, {
+    method: 'DELETE'
+  })
 }
 
 // State History functions
 export async function getStateHistoryByOrderId(orderId: string): Promise<StateHistory[]> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageGetStateHistoryByOrderId(orderId))
+  const allHistory = await apiRequest('/state-history')
+  return allHistory.filter((h: StateHistory) => h.serviceOrderId === orderId)
 }
 
-export async function createStateHistory(history: Omit<StateHistory, "id" | "changed_at">): Promise<StateHistory> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageCreateStateHistory(history))
+export async function createStateHistory(history: Omit<StateHistory, "id" | "changedAt">): Promise<StateHistory> {
+  return apiRequest('/state-history', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...history,
+      id: Date.now().toString(),
+      changedAt: new Date().toISOString()
+    })
+  })
 }
 
 export async function saveStateHistory(history: StateHistory): Promise<void> {
-  const { id, changedAt, ...historyData } = history
   await createStateHistory({
-    ...historyData,
     serviceOrderId: history.serviceOrderId,
     previousState: history.previousState,
     newState: history.newState,
     changedBy: history.changedBy,
     notes: history.notes,
   })
-  return Promise.resolve()
 }
 
-// Expense type and functions
+// Expense functions
 export async function getExpenses(): Promise<Expense[]> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageGetExpenses())
+  return apiRequest('/expenses')
 }
 
 export async function createExpense(expense: Omit<Expense, "id" | "created_at">): Promise<Expense> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageCreateExpense(expense))
+  return apiRequest('/expenses', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...expense,
+      id: Date.now().toString(),
+      created_at: new Date().toISOString()
+    })
+  })
 }
 
 export async function deleteExpense(id: string): Promise<void> {
-  // Always use localStorage in client components
-  storageDeleteExpense(id)
-  return Promise.resolve()
+  await apiRequest(`/expenses/${id}`, {
+    method: 'DELETE'
+  })
 }
 
 // Quotation functions
 export async function updateQuotation(serviceOrderId: string, quotation: Quotation): Promise<void> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageUpdateQuotation(serviceOrderId, quotation))
+  const order = await getServiceOrderById(serviceOrderId)
+  if (order) {
+    await updateServiceOrder(serviceOrderId, { quotation })
+  }
 }
 
-// Revenue functions to track income from delivered orders
+// Revenue functions
 export async function getRevenues(): Promise<Revenue[]> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageGetRevenues())
+  return apiRequest('/revenues')
 }
 
 export async function createRevenue(revenue: Omit<Revenue, "id" | "created_at">): Promise<Revenue> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageCreateRevenue(revenue))
+  return apiRequest('/revenues', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...revenue,
+      id: Date.now().toString(),
+      created_at: new Date().toISOString()
+    })
+  })
+}
+
+// Report functions
+export async function getReports(): Promise<Report[]> {
+  return apiRequest('/reports')
+}
+
+export async function createReport(report: Omit<Report, "id">): Promise<Report> {
+  return apiRequest('/reports', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...report,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString()
+    })
+  })
+}
+
+export async function deleteReport(id: string): Promise<void> {
+  await apiRequest(`/reports/${id}`, {
+    method: 'DELETE'
+  })
+}
+
+export async function updateReport(id: string, updates: Partial<Report>): Promise<Report> {
+  return apiRequest(`/reports/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates)
+  })
 }
 
 // Dashboard stats
@@ -232,25 +301,13 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const expenses = await getExpenses()
   const revenues = await getRevenues()
 
-  // Filter completed orders
   const completedOrders = orders.filter((o) => o.state === "completed" || o.state === "delivered")
-
-  // Calculate unique vehicles served
-  const uniqueVehicles = new Set(completedOrders.map((o) => o.vehicle_id))
+  const uniqueVehicles = new Set(completedOrders.map((o) => o.vehicleId))
   const vehiclesServed = uniqueVehicles.size
-
   const totalSales = revenues.reduce((sum, revenue) => sum + revenue.amount, 0)
-
-  // Calculate average ticket
   const averageTicket = completedOrders.length > 0 ? totalSales / completedOrders.length : 0
-
-  // Calculate total expenses
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0)
-
-  // Calculate profit
   const profit = totalSales - totalExpenses
-
-  // Count active orders (not delivered)
   const activeOrders = orders.filter((o) => o.state !== "delivered").length
 
   return {
@@ -261,39 +318,4 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     profit,
     activeOrders,
   }
-}
-
-// Report functions for technical diagnostics
-export async function getReports(): Promise<Report[]> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageGetReports())
-}
-
-export async function createReport(report: Omit<Report, "id">): Promise<Report> {
-  // Always use localStorage in client components
-  return Promise.resolve(storageCreateReport(report))
-}
-
-export async function deleteReport(id: string): Promise<void> {
-  // Always use localStorage in client components
-  storageDeleteReport(id)
-  return Promise.resolve()
-}
-
-export async function updateReport(id: string, updates: Partial<Report>): Promise<Report> {
-  // Always use localStorage in client components
-  storageUpdateReport(id, updates)
-  const reports = await getReports()
-  const updated = reports.find(r => r.id === id)
-  if (!updated) {
-    throw new Error("Report not found")
-  }
-  return Promise.resolve(updated)
-}
-
-// Delete Service Order function
-export async function deleteServiceOrder(id: string): Promise<void> {
-  // Always use localStorage in client components
-  storageDeleteServiceOrder(id)
-  return Promise.resolve()
 }
