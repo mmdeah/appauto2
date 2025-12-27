@@ -50,8 +50,8 @@ export default function UsersPage() {
     loadData();
   }, []);
 
-  const loadData = () => {
-    const allUsers = getUsers();
+  const loadData = async () => {
+    const allUsers = await getUsers();
     setUsers(allUsers);
   };
 
@@ -77,7 +77,7 @@ export default function UsersPage() {
     setIsDialogOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -94,26 +94,44 @@ export default function UsersPage() {
       return;
     }
 
-    const user: User = {
-      id: editingUser?.id || generateId(),
-      name: formData.name.trim(),
-      email: formData.email.trim(),
-      password: formData.password || editingUser?.password || '',
-      role: formData.role,
-      createdAt: editingUser?.createdAt || new Date().toISOString(),
-    };
+    try {
+      const user: User = {
+        id: editingUser?.id || generateId(),
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        password: formData.password || editingUser?.password || '',
+        role: formData.role,
+        createdAt: editingUser?.createdAt || new Date().toISOString(),
+      };
 
-    saveUser(user);
-    loadData();
-    setIsDialogOpen(false);
-    resetForm();
+      await saveUser(user);
+      await loadData();
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      console.error('[v0] Error saving user:', error);
+      setError('Error al guardar el usuario. Por favor intente nuevamente.');
+    }
   };
 
-  const handleDelete = (userId: string) => {
+  const handleDelete = async (userId: string) => {
     if (confirm('¿Está seguro de eliminar este usuario?')) {
-      const updatedUsers = users.filter(u => u.id !== userId);
-      localStorage.setItem('workshop_users', JSON.stringify(updatedUsers));
-      loadData();
+      try {
+        // Nota: Necesitamos implementar deleteUser en lib/db.ts si no existe
+        // Por ahora, usaremos una llamada directa a la API
+        const response = await fetch(`/api/users/${userId}`, {
+          method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+          throw new Error('Error al eliminar usuario');
+        }
+        
+        await loadData();
+      } catch (error) {
+        console.error('[v0] Error deleting user:', error);
+        alert('Error al eliminar el usuario. Por favor intente nuevamente.');
+      }
     }
   };
 
