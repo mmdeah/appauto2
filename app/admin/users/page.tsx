@@ -117,20 +117,19 @@ export default function UsersPage() {
   const handleDelete = async (userId: string) => {
     if (confirm('¿Está seguro de eliminar este usuario?')) {
       try {
-        // Nota: Necesitamos implementar deleteUser en lib/db.ts si no existe
-        // Por ahora, usaremos una llamada directa a la API
         const response = await fetch(`/api/users/${userId}`, {
           method: 'DELETE'
         });
         
         if (!response.ok) {
-          throw new Error('Error al eliminar usuario');
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Error al eliminar usuario');
         }
         
         await loadData();
       } catch (error) {
         console.error('[v0] Error deleting user:', error);
-        alert('Error al eliminar el usuario. Por favor intente nuevamente.');
+        alert(`Error al eliminar el usuario: ${error instanceof Error ? error.message : 'Error desconocido'}`);
       }
     }
   };
