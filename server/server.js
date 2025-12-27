@@ -6,7 +6,26 @@ const fs = require('fs');
 const cors = require('cors');
 
 const app = express();
-const router = jsonServer.router('db.json');
+
+// ⚠️ IMPORTANTE: Crear db.json ANTES de crear el router
+const dbPath = path.join(__dirname, 'db.json');
+if (!fs.existsSync(dbPath)) {
+  const initialData = {
+    users: [],
+    clients: [],
+    vehicles: [],
+    service_orders: [],
+    state_history: [],
+    expenses: [],
+    revenues: [],
+    reports: []
+  };
+  fs.writeFileSync(dbPath, JSON.stringify(initialData, null, 2));
+  console.log('✅ db.json creado con estructura inicial');
+}
+
+// Ahora sí crear el router (después de asegurar que db.json existe)
+const router = jsonServer.router(dbPath);
 const middlewares = jsonServer.defaults();
 
 // Habilitar CORS
@@ -104,23 +123,6 @@ app.delete('/api/delete-photo', (req, res) => {
 
 // API REST para datos (json-server)
 app.use('/api', router);
-
-// Crear db.json inicial si no existe
-const dbPath = path.join(__dirname, 'db.json');
-if (!fs.existsSync(dbPath)) {
-  const initialData = {
-    users: [],
-    clients: [],
-    vehicles: [],
-    service_orders: [],
-    state_history: [],
-    expenses: [],
-    revenues: [],
-    reports: []
-  };
-  fs.writeFileSync(dbPath, JSON.stringify(initialData, null, 2));
-  console.log('✅ db.json creado con estructura inicial');
-}
 
 // Crear carpeta de fotos si no existe
 const photosDir = path.join(__dirname, 'photos', 'orders');
