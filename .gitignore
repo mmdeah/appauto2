@@ -47,7 +47,7 @@ Thumbs.db
 *~
 
 # Server files (si usas servidor JSON local)
-server/db.json
+# Mantener db.json inicial, pero ignorar cambios en runtime
 server/photos/
 server/node_modules/
 
