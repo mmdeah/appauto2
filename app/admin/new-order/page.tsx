@@ -85,18 +85,28 @@ export default function NewOrderPage() {
   }, []);
 
   const loadData = async () => {
-    const allClients = await getClients();
-    const allUsers = await getUsers();
-    const allVehicles = await getVehicles();
-    
-    const techs = allUsers.filter(u => u.role === 'technician');
-    setClients(allClients);
-    setTechnicians(techs);
-    setVehicles(allVehicles);
-    
-    // Asignar el primer técnico por defecto si hay técnicos disponibles
-    if (techs.length > 0 && selectedTechnician === 'unassigned') {
-      setSelectedTechnician(techs[0].id);
+    try {
+      const allClients = await getClients();
+      const allUsers = await getUsers();
+      const allVehicles = await getVehicles();
+      
+      console.log('[v0] All users loaded:', allUsers);
+      console.log('[v0] Users with technician role:', allUsers.filter(u => u.role === 'technician'));
+      
+      const techs = allUsers.filter(u => u.role === 'technician');
+      setClients(allClients);
+      setTechnicians(techs);
+      setVehicles(allVehicles);
+      
+      console.log('[v0] Technicians found:', techs.length, techs);
+      
+      // Asignar el primer técnico por defecto si hay técnicos disponibles
+      if (techs.length > 0 && selectedTechnician === 'unassigned') {
+        setSelectedTechnician(techs[0].id);
+        console.log('[v0] Auto-assigned technician:', techs[0].id, techs[0].name);
+      }
+    } catch (error) {
+      console.error('[v0] Error loading data:', error);
     }
   };
 

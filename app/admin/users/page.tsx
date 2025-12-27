@@ -27,7 +27,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Plus, Users, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { getUsers, saveUser } from '@/lib/storage';
+import { getUsers, saveUser } from '@/lib/db';
 import { generateId } from '@/lib/utils-service';
 import type { User, UserRole } from '@/lib/types';
 
