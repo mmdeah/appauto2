@@ -13,14 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  getServiceOrderById,
-  getVehicles,
-  getUsers,
-  getStateHistoryByOrderId,
-  saveServiceOrder,
-  saveStateHistory,
-} from '@/lib/storage';
+// Las funciones ahora se importan desde lib/db que usa la API
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, generateId } from '@/lib/utils-service';
 import type { ServiceOrder, Vehicle, User as UserType, StateHistory } from '@/lib/types';
 import Link from 'next/link';
@@ -40,29 +33,40 @@ export default function ClientOrderDetailPage() {
     loadData();
   }, [params.id]);
 
-  const loadData = () => {
-    const foundOrder = getServiceOrderById(params.id as string);
-    
-    if (!foundOrder) {
-      return;
+  const loadData = async () => {
+    try {
+      const { getServiceOrderById, getVehicles, getUsers, getStateHistoryByOrderId } = await import('@/lib/db');
+      
+      const foundOrder = await getServiceOrderById(params.id as string);
+      
+      if (!foundOrder) {
+        router.push('/client');
+        return;
+      }
+
+      setOrder(foundOrder);
+
+      const [allVehicles, allUsers, orderHistory] = await Promise.all([
+        getVehicles(),
+        getUsers(),
+        getStateHistoryByOrderId(foundOrder.id)
+      ]);
+
+      const foundVehicle = allVehicles.find(v => v.id === foundOrder.vehicleId);
+      setVehicle(foundVehicle || null);
+
+      if (foundOrder.technicianId) {
+        const foundTech = allUsers.find(u => u.id === foundOrder.technicianId);
+        setTechnician(foundTech || null);
+      }
+
+      setHistory(orderHistory.sort((a, b) => 
+        new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime()
+      ));
+    } catch (error) {
+      console.error('[v0] Error loading order data:', error);
+      router.push('/client');
     }
-
-    setOrder(foundOrder);
-
-    const allVehicles = getVehicles();
-    const foundVehicle = allVehicles.find(v => v.id === foundOrder.vehicleId);
-    setVehicle(foundVehicle || null);
-
-    if (foundOrder.technicianId) {
-      const allUsers = getUsers();
-      const foundTech = allUsers.find(u => u.id === foundOrder.technicianId);
-      setTechnician(foundTech || null);
-    }
-
-    const orderHistory = getStateHistoryByOrderId(foundOrder.id);
-    setHistory(orderHistory.sort((a, b) => 
-      new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime()
-    ));
   };
 
   const openPhotoDialog = (photoUrl: string) => {

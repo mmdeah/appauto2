@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Clock, CheckCircle2, Wrench, ListChecks, FileText, Search, AlertCircle, XCircle, User, Calendar, CheckCircle } from 'lucide-react';
-import { getServiceOrdersByTechnicianId, getServiceOrders, getVehicles } from '@/lib/storage';
+import { getServiceOrdersByTechnicianId, getServiceOrders, getVehicles, getUsers } from '@/lib/db';
 import { getClients, getReports, updateServiceOrder, createStateHistory } from '@/lib/db';
 import type { Report, ServiceState, Client } from '@/lib/types';
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS } from '@/lib/utils-service';
@@ -36,12 +36,15 @@ export default function TechnicianPage() {
   const loadData = async () => {
     if (!user) return;
     
-    const myOrders = getServiceOrdersByTechnicianId(user.id);
-    const allOrders = getServiceOrders();
+    const [myOrders, allOrders, allVehicles, allReports, allClients] = await Promise.all([
+      getServiceOrdersByTechnicianId(user.id),
+      getServiceOrders(),
+      getVehicles(),
+      getReports(),
+      getClients()
+    ]);
+    
     const unassigned = allOrders.filter(o => !o.technicianId);
-    const allVehicles = getVehicles();
-    const allReports = await getReports();
-    const allClients = await getClients();
     
     setAssignedOrders(myOrders.filter(o => o.state !== 'delivered'));
     setUnassignedOrders(unassigned.filter(o => o.state !== 'delivered'));
@@ -77,7 +80,7 @@ export default function TechnicianPage() {
 
     if (!draggedOrderId || !user) return;
 
-    const allOrders = getServiceOrders();
+    const allOrders = await getServiceOrders();
     const order = allOrders.find((o) => o.id === draggedOrderId);
     if (!order || order.state === targetState) {
       setDraggedOrderId(null);
