@@ -512,19 +512,30 @@ export default function NewOrderPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="technician">Técnico Asignado</Label>
-                  <Select value={selectedTechnician} onValueChange={setSelectedTechnician}>
+                  <Select value={selectedTechnician || 'unassigned'} onValueChange={setSelectedTechnician}>
                     <SelectTrigger id="technician">
                       <SelectValue placeholder="Sin asignar" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="unassigned">Sin asignar</SelectItem>
-                      {technicians.map((tech) => (
-                        <SelectItem key={tech.id} value={tech.id}>
-                          {tech.name}
+                      {technicians.length === 0 ? (
+                        <SelectItem value="no-technicians" disabled>
+                          No hay técnicos disponibles
                         </SelectItem>
-                      ))}
+                      ) : (
+                        technicians.map((tech) => (
+                          <SelectItem key={tech.id} value={tech.id}>
+                            {tech.name}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
+                  {technicians.length === 0 && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      No hay técnicos registrados. Crea un técnico en la sección de Usuarios.
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
