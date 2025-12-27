@@ -25,6 +25,13 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     
+    // Asegurar que el ID esté presente
+    if (!body.id) {
+      body.id = Date.now().toString();
+    }
+    
+    console.log('📝 Creando orden con ID:', body.id);
+    
     const response = await fetch(`${API_BASE_URL}/api/service_orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -32,15 +39,18 @@ export async function POST(request: Request) {
     });
     
     if (!response.ok) {
-      throw new Error('Error al crear orden');
+      const errorText = await response.text();
+      console.error('❌ Error del servidor JSON al crear:', response.status, errorText);
+      throw new Error(`Error al crear orden: ${response.status} ${errorText}`);
     }
     
     const data = await response.json();
+    console.log('✅ Orden creada con ID:', data.id);
     return Response.json(data);
   } catch (error) {
-    console.error('Error creating order:', error);
+    console.error('❌ Error creating order:', error);
     return Response.json(
-      { error: 'Error al crear orden' },
+      { error: `Error al crear orden: ${error instanceof Error ? error.message : 'Error desconocido'}` },
       { status: 500 }
     );
   }

@@ -59,6 +59,32 @@ export async function PUT(
     // Asegurar que el ID en el body coincida con el de la URL
     const orderData = { ...body, id };
     
+    console.log('📝 Actualizando orden con ID:', id);
+    
+    // Primero verificar que la orden existe
+    const checkResponse = await fetch(`${API_BASE_URL}/api/service_orders/${id}`, {
+      cache: 'no-store'
+    });
+    
+    if (!checkResponse.ok) {
+      console.error('❌ Orden no encontrada con ID:', id);
+      // Si no existe, intentar crearla
+      console.log('🔄 Intentando crear orden en lugar de actualizar...');
+      const createResponse = await fetch(`${API_BASE_URL}/api/service_orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData)
+      });
+      
+      if (!createResponse.ok) {
+        const errorText = await createResponse.text();
+        throw new Error(`Error al crear/actualizar orden: ${createResponse.status} ${errorText}`);
+      }
+      
+      const createdData = await createResponse.json();
+      return Response.json(createdData);
+    }
+    
     const response = await fetch(`${API_BASE_URL}/api/service_orders/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
