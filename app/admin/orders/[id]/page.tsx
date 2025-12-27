@@ -438,7 +438,7 @@ TOTAL: ${formatCurrency(order.quotation.total)}
       
       // Usar la placa del vehículo como nombre de la factura
       const licensePlate = vehicle.licensePlate || "SIN-PLACA"
-      printInvoice(invoiceHTML, licensePlate)
+      printInvoice(invoiceHTML, licensePlate, "invoice")
       
       // Cerrar el diálogo y limpiar la nota
       setInvoiceNoteDialogOpen(false)
@@ -461,7 +461,7 @@ TOTAL: ${formatCurrency(order.quotation.total)}
       
       // Usar la placa del vehículo como nombre del documento
       const licensePlate = vehicle.licensePlate || "SIN-PLACA"
-      printInvoice(quotationHTML, licensePlate)
+      printInvoice(quotationHTML, licensePlate, "quotation")
     } catch (error) {
       console.error("Error al generar la cotización:", error)
       alert("Error al generar la cotización. Por favor, intente nuevamente.")
@@ -480,7 +480,7 @@ TOTAL: ${formatCurrency(order.quotation.total)}
       
       // Usar la placa del vehículo como nombre del documento
       const licensePlate = vehicle.licensePlate || "SIN-PLACA"
-      printInvoice(qualityHTML, licensePlate)
+      printInvoice(qualityHTML, licensePlate, "invoice") // Control de calidad usa el mismo formato
     } catch (error) {
       console.error("Error al generar el PDF de control de calidad:", error)
       alert("Error al generar el PDF. Por favor, intente nuevamente.")

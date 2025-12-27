@@ -147,7 +147,7 @@ export function generateInvoiceHTML(
 /**
  * Abre la factura en una ventana de impresión
  */
-export function printInvoice(html: string, licensePlate: string) {
+export function printInvoice(html: string, licensePlate: string, documentType: "quotation" | "invoice" = "invoice") {
   const printWindow = window.open("", "_blank", "width=900,height=700")
   
   if (!printWindow) {
@@ -155,12 +155,22 @@ export function printInvoice(html: string, licensePlate: string) {
     return
   }
 
-  // Establecer el título de la ventana con el nombre de la factura
-  const invoiceName = `Factura ${licensePlate}`
-  printWindow.document.title = invoiceName
+  // Determinar el nombre del documento según el tipo
+  const documentName = documentType === "quotation" ? "Cotizacion" : "Factura"
+  const fileName = `${documentName}_${licensePlate.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`
+  
+  // Establecer el título de la ventana con el nombre del archivo
+  printWindow.document.title = fileName
+
+  // Modificar el HTML para incluir el nombre del archivo en el título del documento
+  // Esto ayuda a que el navegador sugiera el nombre correcto al guardar como PDF
+  const modifiedHtml = html.replace(
+    /<title>(.*?)<\/title>/i,
+    `<title>${fileName}</title>`
+  )
 
   // Escribir el HTML en la ventana
-  printWindow.document.write(html)
+  printWindow.document.write(modifiedHtml)
   printWindow.document.close()
 
   // Esperar a que el contenido se cargue completamente

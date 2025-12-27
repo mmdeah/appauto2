@@ -6,8 +6,8 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Car, Users, Wrench, TrendingUp, DollarSign, TrendingDown, Search, Filter, AlertCircle, CheckCircle2, XCircle, User, Calendar, ListChecks, CheckCircle, Clock, Settings } from "lucide-react"
-import { getServiceOrders, getVehicles, getUsers, getClients, getDashboardStats, getReports, updateReport, updateServiceOrder, createStateHistory } from "@/lib/db"
+import { Plus, Car, Users, Wrench, TrendingUp, DollarSign, TrendingDown, Search, Filter, AlertCircle, CheckCircle2, XCircle, User, Calendar, ListChecks, CheckCircle, Clock, Settings, Trash2 } from "lucide-react"
+import { getServiceOrders, getVehicles, getUsers, getClients, getDashboardStats, getReports, updateReport, deleteReport, updateServiceOrder, createStateHistory } from "@/lib/db"
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, formatCurrency } from "@/lib/utils-service"
 import type { ServiceOrder, Vehicle, User, Client, Report, ServiceState } from "@/lib/types"
 import { useAuth } from "@/lib/auth-context"
@@ -644,30 +644,52 @@ export default function AdminPage() {
                                     </div>
                                   </div>
                                 </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={async () => {
-                                    try {
-                                      await updateReport(report.id, { resolved: !isResolved })
-                                      await loadData()
-                                    } catch (error) {
-                                      console.error("[v0] Error updating report:", error)
-                                    }
-                                  }}
-                                  className={`h-7 w-7 p-0 shrink-0 rounded-full ${
-                                    isResolved
-                                      ? "hover:bg-yellow-100 dark:hover:bg-yellow-900/40"
-                                      : "hover:bg-blue-100 dark:hover:bg-blue-900/40"
-                                  }`}
-                                  title={isResolved ? "Marcar como No Resuelto" : "Marcar como Resuelto"}
-                                >
-                                  {isResolved ? (
-                                    <XCircle className="h-3.5 w-3.5 text-yellow-600 dark:text-yellow-400" />
-                                  ) : (
-                                    <CheckCircle2 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={async () => {
+                                      try {
+                                        await updateReport(report.id, { resolved: !isResolved })
+                                        await loadData()
+                                      } catch (error) {
+                                        console.error("[v0] Error updating report:", error)
+                                      }
+                                    }}
+                                    className={`h-7 w-7 p-0 shrink-0 rounded-full ${
+                                      isResolved
+                                        ? "hover:bg-yellow-100 dark:hover:bg-yellow-900/40"
+                                        : "hover:bg-blue-100 dark:hover:bg-blue-900/40"
+                                    }`}
+                                    title={isResolved ? "Marcar como No Resuelto" : "Marcar como Resuelto"}
+                                  >
+                                    {isResolved ? (
+                                      <XCircle className="h-3.5 w-3.5 text-yellow-600 dark:text-yellow-400" />
+                                    ) : (
+                                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                                    )}
+                                  </Button>
+                                  {isResolved && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={async () => {
+                                        if (confirm("¿Está seguro de eliminar este reporte?")) {
+                                          try {
+                                            await deleteReport(report.id)
+                                            await loadData()
+                                          } catch (error) {
+                                            console.error("[v0] Error deleting report:", error)
+                                          }
+                                        }
+                                      }}
+                                      className="h-7 w-7 p-0 shrink-0 rounded-full hover:bg-red-100 dark:hover:bg-red-900/40"
+                                      title="Eliminar reporte"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+                                    </Button>
                                   )}
-                                </Button>
+                                </div>
                               </div>
                               <p className="text-[10px] text-muted-foreground">
                                 {new Date(report.createdAt).toLocaleDateString("es-ES", {

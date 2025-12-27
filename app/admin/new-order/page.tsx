@@ -89,9 +89,15 @@ export default function NewOrderPage() {
     const allUsers = await getUsers();
     const allVehicles = await getVehicles();
     
+    const techs = allUsers.filter(u => u.role === 'technician');
     setClients(allClients);
-    setTechnicians(allUsers.filter(u => u.role === 'technician'));
+    setTechnicians(techs);
     setVehicles(allVehicles);
+    
+    // Asignar el primer técnico por defecto si hay técnicos disponibles
+    if (techs.length > 0 && !selectedTechnician) {
+      setSelectedTechnician(techs[0].id);
+    }
   };
 
   const clientVehicles = selectedClient
@@ -203,12 +209,18 @@ export default function NewOrderPage() {
       // Generar número de orden basado en la placa
       const orderNumber = generateOrderNumber(vehicleLicensePlate);
 
+      // Asignar técnico: si hay técnicos disponibles y no se seleccionó uno, usar el primero
+      let finalTechnicianId = selectedTechnician && selectedTechnician !== 'unassigned' ? selectedTechnician : undefined;
+      if (!finalTechnicianId && technicians.length > 0) {
+        finalTechnicianId = technicians[0].id;
+      }
+
       const order: ServiceOrder = {
         id: generateId(),
         orderNumber,
         vehicleId,
         clientId: clientId,
-        technicianId: selectedTechnician && selectedTechnician !== 'unassigned' ? selectedTechnician : undefined,
+        technicianId: finalTechnicianId,
         state: 'reception',
         description: description.trim(),
         services: validServices.map(desc => ({
