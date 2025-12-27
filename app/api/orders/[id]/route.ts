@@ -41,15 +41,17 @@ export async function PUT(
     });
     
     if (!response.ok) {
-      throw new Error('Error al actualizar orden');
+      const errorText = await response.text();
+      console.error('❌ Error del servidor JSON:', response.status, errorText);
+      throw new Error(`Error al actualizar orden: ${response.status} ${errorText}`);
     }
     
     const data = await response.json();
     return Response.json(data);
   } catch (error) {
-    console.error('Error updating order:', error);
+    console.error('❌ Error updating order:', error);
     return Response.json(
-      { error: 'Error al actualizar orden' },
+      { error: `Error al actualizar orden: ${error instanceof Error ? error.message : 'Error desconocido'}` },
       { status: 500 }
     );
   }

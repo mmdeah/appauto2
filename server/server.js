@@ -71,7 +71,9 @@ const upload = multer({
 });
 
 // Middlewares
-app.use(express.json());
+// Aumentar límite para manejar fotos Base64 grandes
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(middlewares);
 
 // Servir fotos estáticas
