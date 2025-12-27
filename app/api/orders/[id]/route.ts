@@ -2,10 +2,21 @@ const API_BASE_URL = process.env.JSON_SERVER_URL || 'http://localhost:3001';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/service_orders/${params.id}`, {
+    // Manejar params como Promise o objeto directo (Next.js 13+)
+    const resolvedParams = params instanceof Promise ? await params : params;
+    const id = resolvedParams.id;
+    
+    if (!id) {
+      return Response.json(
+        { error: 'ID es requerido' },
+        { status: 400 }
+      );
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/api/service_orders/${id}`, {
       cache: 'no-store'
     });
     
@@ -29,15 +40,29 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
+    // Manejar params como Promise o objeto directo (Next.js 13+)
+    const resolvedParams = params instanceof Promise ? await params : params;
+    const id = resolvedParams.id;
+    
+    if (!id) {
+      return Response.json(
+        { error: 'ID es requerido' },
+        { status: 400 }
+      );
+    }
+    
     const body = await request.json();
     
-    const response = await fetch(`${API_BASE_URL}/api/service_orders/${params.id}`, {
+    // Asegurar que el ID en el body coincida con el de la URL
+    const orderData = { ...body, id };
+    
+    const response = await fetch(`${API_BASE_URL}/api/service_orders/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(orderData)
     });
     
     if (!response.ok) {
@@ -59,10 +84,21 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/service_orders/${params.id}`, {
+    // Manejar params como Promise o objeto directo (Next.js 13+)
+    const resolvedParams = params instanceof Promise ? await params : params;
+    const id = resolvedParams.id;
+    
+    if (!id) {
+      return Response.json(
+        { error: 'ID es requerido' },
+        { status: 400 }
+      );
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/api/service_orders/${id}`, {
       method: 'DELETE'
     });
     
