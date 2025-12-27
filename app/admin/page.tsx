@@ -584,7 +584,8 @@ export default function AdminPage() {
                       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
                     })
                     .map((report) => {
-                      const isResolved = report.resolved ?? false
+                      // Asegurar que resolved sea un booleano
+                      const isResolved = Boolean(report.resolved)
                       return (
                         <Card
                           key={report.id}

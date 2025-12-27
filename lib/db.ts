@@ -99,7 +99,13 @@ export async function getVehiclesByClientId(clientId: string): Promise<Vehicle[]
 
 export async function getVehicleByLicensePlate(licensePlate: string): Promise<Vehicle | null> {
   const vehicles = await getVehicles()
-  return vehicles.find(v => v.licensePlate?.toLowerCase() === licensePlate.toLowerCase()) || null
+  // Normalizar la placa: eliminar espacios, guiones y convertir a mayúsculas
+  const normalizedSearch = licensePlate.replace(/[\s\-]/g, '').toUpperCase()
+  return vehicles.find(v => {
+    if (!v.licensePlate) return false
+    const normalizedPlate = v.licensePlate.replace(/[\s\-]/g, '').toUpperCase()
+    return normalizedPlate === normalizedSearch
+  }) || null
 }
 
 export async function saveVehicle(

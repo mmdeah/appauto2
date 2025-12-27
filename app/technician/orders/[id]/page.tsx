@@ -57,28 +57,38 @@ export default function TechnicianOrderDetailPage() {
     loadData()
   }, [params.id])
 
-  const loadData = () => {
-    const foundOrder = getServiceOrderById(params.id as string)
+  const loadData = async () => {
+    try {
+      const { getServiceOrderById, getVehicles, getUsers, getClients, getStateHistoryByOrderId } = await import("@/lib/db")
+      
+      const foundOrder = await getServiceOrderById(params.id as string)
 
-    if (!foundOrder) {
-      router.push("/technician")
-      return
+      if (!foundOrder) {
+        router.push("/technician")
+        return
+      }
+
+      setOrder(foundOrder)
+      setServicePhotos(foundOrder.servicePhotos || [])
+      setSelectedState(foundOrder.state)
+
+      const [allVehicles, allUsers, allClients, orderHistory] = await Promise.all([
+        getVehicles(),
+        getUsers(),
+        getClients(),
+        getStateHistoryByOrderId(foundOrder.id)
+      ])
+
+      const foundVehicle = allVehicles.find((v) => v.id === foundOrder.vehicleId)
+      setVehicle(foundVehicle || null)
+
+      const foundClient = allClients.find((c) => c.id === foundOrder.clientId)
+      setClient(foundClient || null)
+
+      setHistory(orderHistory.sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime()))
+    } catch (error) {
+      console.error("[v0] Error loading order data:", error)
     }
-
-    setOrder(foundOrder)
-    setServicePhotos(foundOrder.servicePhotos || [])
-    setSelectedState(foundOrder.state)
-
-    const allVehicles = getVehicles()
-    const foundVehicle = allVehicles.find((v) => v.id === foundOrder.vehicleId)
-    setVehicle(foundVehicle || null)
-
-    const allUsers = getUsers()
-    const foundClient = allUsers.find((u) => u.id === foundOrder.clientId)
-    setClient(foundClient || null)
-
-    const orderHistory = getStateHistoryByOrderId(foundOrder.id)
-    setHistory(orderHistory.sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime()))
   }
 
   const toggleServiceCompletion = async (serviceId: string) => {
@@ -194,10 +204,11 @@ export default function TechnicianOrderDetailPage() {
         updatedAt: new Date().toISOString(),
       }
 
-      const { saveServiceOrderWithPhotos } = await import("@/lib/storage")
-      await saveServiceOrderWithPhotos(updatedOrder)
+      // Usar saveServiceOrder de lib/db.ts que usa la API
+      const { saveServiceOrder } = await import("@/lib/db")
+      await saveServiceOrder(updatedOrder)
       setMessage("Fotos guardadas correctamente")
-      loadData()
+      await loadData()
     } catch (err) {
       console.error("[v0] Error saving photos:", err)
       setMessage("Error al guardar las fotos")
