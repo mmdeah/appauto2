@@ -166,6 +166,71 @@ export default function AdminPage() {
     }
   }
 
+  const handleOpenDeliveryDialog = async (order: ServiceOrder) => {
+    setSelectedOrderForDelivery(order)
+    
+    // Cargar detalles completos de la orden
+    try {
+      const fullOrder = await getServiceOrderById(order.id)
+      const vehicle = vehicles.find(v => v.id === order.vehicleId) || null
+      const client = clients.find(c => c.id === order.clientId) || null
+      const technician = order.technicianId ? technicians.find(t => t.id === order.technicianId) || null : null
+      
+      setDeliveryOrderDetails({
+        order: fullOrder,
+        vehicle,
+        client,
+        technician
+      })
+      setDeliveryDialogOpen(true)
+    } catch (error) {
+      console.error("[v0] Error loading order details:", error)
+    }
+  }
+
+  const handleConfirmDelivery = async () => {
+    if (!selectedOrderForDelivery || !user || !deliveryOrderDetails.order) return
+
+    try {
+      // Crear historial de estado
+      await createStateHistory({
+        serviceOrderId: selectedOrderForDelivery.id,
+        previousState: selectedOrderForDelivery.state,
+        newState: "delivered",
+        changedBy: user.id,
+        notes: "Estado: Entregado",
+      })
+
+      // Registrar ganancia si aplica
+      if (deliveryOrderDetails.order.quotation && deliveryOrderDetails.order.quotation.total > 0) {
+        await createRevenue({
+          serviceOrderId: selectedOrderForDelivery.id,
+          amount: deliveryOrderDetails.order.quotation.total,
+          date: new Date().toISOString(),
+          description: `Orden ${deliveryOrderDetails.order.orderNumber || selectedOrderForDelivery.id.slice(0, 8)} - ${deliveryOrderDetails.vehicle ? `${deliveryOrderDetails.vehicle.brand} ${deliveryOrderDetails.vehicle.model}` : "Vehículo"}`,
+        })
+      }
+
+      // Actualizar orden
+      await updateServiceOrder(selectedOrderForDelivery.id, {
+        state: "delivered",
+        deliveredAt: new Date().toISOString(),
+      })
+
+      // TODO: Aquí se enviará el email al cliente con toda la información
+      // Por ahora solo mostramos un mensaje
+      alert("Orden marcada como entregada. El email se enviará próximamente.")
+
+      setDeliveryDialogOpen(false)
+      setSelectedOrderForDelivery(null)
+      setDeliveryOrderDetails({ order: null, vehicle: null, client: null, technician: null })
+      await loadData()
+    } catch (error) {
+      console.error("[v0] Error confirming delivery:", error)
+      alert("Error al procesar la entrega. Por favor intente nuevamente.")
+    }
+  }
+
   const activeOrders = serviceOrders.filter((order) => order.state !== "delivered")
   const deliveredOrders = serviceOrders.filter((order) => order.state === "delivered")
 
