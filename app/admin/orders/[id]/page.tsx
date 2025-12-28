@@ -38,8 +38,7 @@ import {
   createRevenue,
 } from "@/lib/db"
 import { generateInvoiceHTML, printInvoice, generateQualityControlHTML } from "@/lib/invoice-generator"
-import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, generateId, formatCurrency, getNextState, getPreviousState, generatePublicToken } from "@/lib/utils-service"
-import { getPublicUrl } from "@/lib/get-public-url"
+import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, generateId, formatCurrency, getNextState, getPreviousState } from "@/lib/utils-service"
 import type { ServiceOrder, Vehicle, User as UserType, Client, StateHistory, QuotationItem, ServiceState } from "@/lib/types"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/lib/auth-context"
