@@ -41,25 +41,30 @@ const BarChart = ({ data, labels, title }: { data: number[], labels: string[], t
   );
 };
 
-// Componente de gráfico de líneas simple
-const LineChart = ({ data, labels, title }: { data: number[], labels: string[], title: string }) => {
-  const maxValue = Math.max(...data, 1);
-  const minValue = Math.min(...data, 0);
-  const range = maxValue - minValue || 1;
+// Componente de gráfico de barras comparativo
+const ComparisonChart = ({ revenues, expenses, labels }: { revenues: number[], expenses: number[], labels: string[] }) => {
+  const maxValue = Math.max(...revenues, ...expenses, 1);
   
   return (
-    <div className="space-y-2">
-      <h3 className="text-sm font-semibold text-muted-foreground">{title}</h3>
-      <div className="relative h-48 flex items-end justify-between gap-1">
-        {data.map((value, index) => {
-          const height = ((value - minValue) / range) * 100;
+    <div className="space-y-4">
+      <div className="relative h-64 flex items-end justify-between gap-1">
+        {revenues.map((revValue, index) => {
+          const expValue = expenses[index] || 0;
+          const revHeight = (revValue / maxValue) * 100;
+          const expHeight = (expValue / maxValue) * 100;
+          
           return (
-            <div key={index} className="flex-1 flex flex-col items-center">
-              <div className="w-full flex flex-col items-center justify-end h-full">
+            <div key={index} className="flex-1 flex flex-col items-center gap-1">
+              <div className="w-full flex flex-col items-center justify-end h-full gap-0.5">
                 <div
-                  className="w-full bg-primary rounded-t transition-all hover:bg-primary/80"
-                  style={{ height: `${height}%`, minHeight: value > 0 ? '4px' : '0' }}
-                  title={`${labels[index]}: ${formatCurrency(value)}`}
+                  className="w-full bg-green-500 rounded-t transition-all hover:bg-green-600"
+                  style={{ height: `${revHeight}%`, minHeight: revValue > 0 ? '2px' : '0' }}
+                  title={`${labels[index]} - Ingresos: ${formatCurrency(revValue)}`}
+                />
+                <div
+                  className="w-full bg-red-500 rounded-t transition-all hover:bg-red-600"
+                  style={{ height: `${expHeight}%`, minHeight: expValue > 0 ? '2px' : '0' }}
+                  title={`${labels[index]} - Gastos: ${formatCurrency(expValue)}`}
                 />
               </div>
               <span className="text-xs text-muted-foreground mt-1 transform -rotate-45 origin-top-left whitespace-nowrap">
@@ -297,13 +302,10 @@ export default function StatisticsPage() {
                 <CardDescription>Comparación mensual de ingresos y gastos</CardDescription>
               </CardHeader>
               <CardContent>
-                <LineChart
-                  data={[...Array(12)].map((_, i) => ({
-                    revenues: revenuesData[i] || 0,
-                    expenses: expensesData[i] || 0,
-                  }))}
+                <ComparisonChart
+                  revenues={revenuesData}
+                  expenses={expensesData}
                   labels={monthLabels}
-                  title=""
                 />
                 <div className="mt-4 flex gap-4 justify-center">
                   <div className="flex items-center gap-2">
