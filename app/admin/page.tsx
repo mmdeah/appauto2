@@ -53,7 +53,7 @@ export default function AdminPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [orders, allVehicles, allUsers, allClients, dashboardStats, allReports] = await Promise.all([
+            const [orders, allVehicles, allUsers, allClients, dashboardStats, allReports, allRatings] = await Promise.all([
         getServiceOrders().catch((err) => {
           console.error("[v0] Error loading orders:", err)
           return []
@@ -81,18 +81,23 @@ export default function AdminPage() {
             activeOrders: 0,
           }
         }),
-        getReports().catch((err) => {
-          console.error("[v0] Error loading reports:", err)
-          return []
-        }),
-      ])
+              getReports().catch((err) => {
+                console.error("[v0] Error loading reports:", err)
+                return []
+              }),
+              getRatings().catch((err) => {
+                console.error("[v0] Error loading ratings:", err)
+                return []
+              }),
+            ])
 
       setServiceOrders(orders)
       setVehicles(allVehicles)
       setClients(allClients)
-      setTechnicians(allUsers.filter((u) => u.role === "technician"))
-      setStats(dashboardStats)
-      setReports(allReports)
+            setTechnicians(allUsers.filter((u) => u.role === "technician"))
+            setStats(dashboardStats)
+            setReports(allReports)
+            setRatings(allRatings)
     } catch (error) {
       console.error("[v0] Error loading dashboard data:", error)
       setServiceOrders([])
