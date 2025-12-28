@@ -20,7 +20,6 @@ import Link from 'next/link';
 export default function TechnicianPage() {
   const { user } = useAuth();
   const [assignedOrders, setAssignedOrders] = useState<ServiceOrder[]>([]);
-  const [unassignedOrders, setUnassignedOrders] = useState<ServiceOrder[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -36,18 +35,14 @@ export default function TechnicianPage() {
   const loadData = async () => {
     if (!user) return;
     
-    const [myOrders, allOrders, allVehicles, allReports, allClients] = await Promise.all([
+    const [myOrders, allVehicles, allReports, allClients] = await Promise.all([
       getServiceOrdersByTechnicianId(user.id),
-      getServiceOrders(),
       getVehicles(),
       getReports(),
       getClients()
     ]);
     
-    const unassigned = allOrders.filter(o => !o.technicianId);
-    
     setAssignedOrders(myOrders.filter(o => o.state !== 'delivered'));
-    setUnassignedOrders(unassigned.filter(o => o.state !== 'delivered'));
     setVehicles(allVehicles);
     setReports(allReports);
     setClients(allClients);
@@ -141,13 +136,6 @@ export default function TechnicianPage() {
       color: 'text-green-600 dark:text-green-400',
       bgColor: 'bg-green-100 dark:bg-green-900/20',
     },
-    {
-      title: 'Sin Asignar',
-      value: unassignedOrders.length,
-      icon: ListChecks,
-      color: 'text-orange-600 dark:text-orange-400',
-      bgColor: 'bg-orange-100 dark:bg-orange-900/20',
-    },
   ];
 
   const filteredAssignedOrders = assignedOrders.filter((order) => {
@@ -163,18 +151,6 @@ export default function TechnicianPage() {
     )
   })
 
-  const filteredUnassignedOrders = unassignedOrders.filter((order) => {
-    if (!searchTerm.trim()) return true
-    const vehicle = getVehicleInfo(order.vehicleId)
-    const searchLower = searchTerm.toLowerCase()
-    return (
-      vehicle?.licensePlate.toLowerCase().includes(searchLower) ||
-      vehicle?.brand.toLowerCase().includes(searchLower) ||
-      vehicle?.model.toLowerCase().includes(searchLower) ||
-      order.description.toLowerCase().includes(searchLower) ||
-      (order.orderNumber || order.id.slice(0, 8)).toLowerCase().includes(searchLower)
-    )
-  })
 
   const OrderList = ({ orders, emptyMessage }: { orders: ServiceOrder[], emptyMessage: string }) => (
     <>
@@ -282,12 +258,9 @@ export default function TechnicianPage() {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="assigned" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-1">
                   <TabsTrigger value="assigned">
                     Mis Órdenes ({assignedOrders.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="unassigned">
-                    Sin Asignar ({unassignedOrders.length})
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent value="assigned" className="mt-6">
@@ -412,23 +385,6 @@ export default function TechnicianPage() {
                       })}
                     </div>
                   )}
-                </TabsContent>
-                <TabsContent value="unassigned" className="mt-6">
-                  <div className="mb-4">
-                    <div className="relative max-w-md">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Buscar por placa, vehículo o descripción..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-                  <OrderList 
-                    orders={filteredUnassignedOrders}
-                    emptyMessage={searchTerm ? "No se encontraron resultados" : "No hay órdenes sin asignar"}
-                  />
                 </TabsContent>
               </Tabs>
             </CardContent>

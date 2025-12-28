@@ -6,7 +6,7 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Car, Users, Wrench, TrendingUp, DollarSign, TrendingDown, Search, Filter, AlertCircle, CheckCircle2, XCircle, User, Calendar, ListChecks, CheckCircle, Clock, Settings, Trash2 } from "lucide-react"
+import { Plus, Car, Users, Wrench, TrendingUp, DollarSign, TrendingDown, Search, Filter, AlertCircle, CheckCircle2, XCircle, User, Calendar, ListChecks, CheckCircle, Clock, Trash2 } from "lucide-react"
 import { getServiceOrders, getVehicles, getUsers, getClients, getDashboardStats, getReports, updateReport, deleteReport, updateServiceOrder, createStateHistory } from "@/lib/db"
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, formatCurrency } from "@/lib/utils-service"
 import type { ServiceOrder, Vehicle, User, Client, Report, ServiceState } from "@/lib/types"
@@ -285,12 +285,6 @@ export default function AdminPage() {
               <Link href="/admin/expenses">
                 <TrendingDown className="h-4 w-4 mr-2" />
                 Historial de Gastos
-              </Link>
-            </Button>
-            <Button variant="outline" asChild size="lg" className="shadow-sm">
-              <Link href="/admin/settings">
-                <Settings className="h-4 w-4 mr-2" />
-                Configuración
               </Link>
             </Button>
           </div>

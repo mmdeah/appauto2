@@ -90,20 +90,14 @@ export default function NewOrderPage() {
       const allUsers = await getUsers();
       const allVehicles = await getVehicles();
       
-      console.log('[v0] All users loaded:', allUsers);
-      console.log('[v0] Users with technician role:', allUsers.filter(u => u.role === 'technician'));
-      
       const techs = allUsers.filter(u => u.role === 'technician');
       setClients(allClients);
       setTechnicians(techs);
       setVehicles(allVehicles);
       
-      console.log('[v0] Technicians found:', techs.length, techs);
-      
-      // Asignar el primer técnico por defecto si hay técnicos disponibles
+      // Asignar el primer técnico por defecto (solo uno permitido)
       if (techs.length > 0 && selectedTechnician === 'unassigned') {
         setSelectedTechnician(techs[0].id);
-        console.log('[v0] Auto-assigned technician:', techs[0].id, techs[0].name);
       }
     } catch (error) {
       console.error('[v0] Error loading data:', error);
@@ -219,9 +213,9 @@ export default function NewOrderPage() {
       // Generar número de orden basado en la placa
       const orderNumber = generateOrderNumber(vehicleLicensePlate);
 
-      // Asignar técnico: si hay técnicos disponibles y no se seleccionó uno, usar el primero
-      let finalTechnicianId = selectedTechnician && selectedTechnician !== 'unassigned' ? selectedTechnician : undefined;
-      if (!finalTechnicianId && technicians.length > 0) {
+      // Asignar técnico: siempre usar el primer técnico disponible (solo uno permitido)
+      let finalTechnicianId: string | undefined = undefined;
+      if (technicians.length > 0) {
         finalTechnicianId = technicians[0].id;
       }
 
@@ -522,29 +516,21 @@ export default function NewOrderPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="technician">Técnico Asignado</Label>
-                  <Select value={selectedTechnician || 'unassigned'} onValueChange={setSelectedTechnician}>
-                    <SelectTrigger id="technician">
-                      <SelectValue placeholder="Sin asignar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unassigned">Sin asignar</SelectItem>
-                      {technicians.length === 0 ? (
-                        <SelectItem value="no-technicians" disabled>
-                          No hay técnicos disponibles
-                        </SelectItem>
-                      ) : (
-                        technicians.map((tech) => (
-                          <SelectItem key={tech.id} value={tech.id}>
-                            {tech.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                  {technicians.length === 0 && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      No hay técnicos registrados. Crea un técnico en la sección de Usuarios.
-                    </p>
+                  {technicians.length === 0 ? (
+                    <div className="p-3 border rounded-md bg-muted">
+                      <p className="text-sm text-muted-foreground">
+                        No hay técnicos registrados. Crea un técnico en la sección de Usuarios.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-3 border rounded-md bg-muted">
+                      <p className="text-sm font-medium">
+                        {technicians[0].name}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Todas las órdenes se asignan automáticamente a este técnico.
+                      </p>
+                    </div>
                   )}
                 </div>
 

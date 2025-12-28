@@ -1223,22 +1223,9 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                           onClick={async () => {
                             if (!order || !vehicle || !client) return
 
-                            // Generar token público si no existe
-                            let publicToken = order.publicToken
-                            if (!publicToken) {
-                              publicToken = generatePublicToken()
-                              await updateServiceOrder(order.id, {
-                                publicToken: publicToken,
-                              })
-                              // Recargar la orden para tener el token actualizado
-                              const updatedOrder = await getServiceOrderById(order.id)
-                              if (updatedOrder) {
-                                setOrder(updatedOrder)
-                              }
-                            }
-
-                            // Generar URL pública usando la función que detecta ngrok
-                            const publicUrl = `${getPublicUrl()}/public/order/${publicToken}`
+                            // Obtener la URL base de la aplicación (desde Railway o localhost)
+                            const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://apponlinesd.up.railway.app'
+                            const clientUrl = `${baseUrl}/client`
 
                             // Limpiar el número de teléfono (quitar espacios, guiones, paréntesis)
                             const cleanPhone = client.phone.replace(/[\s\-\(\)]/g, "")
@@ -1251,7 +1238,7 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                             let message: string
                             if (!order.whatsappSent) {
                               // Primera vez: mensaje completo con URL
-                              message = `Hola ${client.name}, te contactamos desde Automotriz Online SD sobre tu orden de servicio en el Vehículo ${vehicle.licensePlate}.\n\nPuedes seguir el estado de tu orden aquí: ${publicUrl}`
+                              message = `Hola ${client.name}, te contactamos desde Automotriz Online SD sobre tu orden de servicio en el Vehículo ${vehicle.licensePlate}.\n\nPuedes seguir el estado de tu orden aquí: ${clientUrl}`
                               // Marcar como enviado
                               await updateServiceOrder(order.id, {
                                 whatsappSent: true,
@@ -1263,7 +1250,7 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                               }
                             } else {
                               // Ya se envió antes: mensaje simple sin URL
-                              message = `Hola ${client.name}, te contactamos desde Automotriz Online SD sobre tu orden de servicio ${order.orderNumber || order.id.slice(0, 8)}.`
+                              message = `Hola ${client.name}, te contactamos desde Automotriz Online SD sobre tu orden de servicio ${order.orderNumber || order.id.slice(0, 8)}.\n\nPuedes seguir el estado aquí: ${clientUrl}`
                             }
                             
                             // Abrir WhatsApp
