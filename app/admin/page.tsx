@@ -36,6 +36,14 @@ export default function AdminPage() {
   const [deliveredSearch, setDeliveredSearch] = useState("")
   const [reportFilter, setReportFilter] = useState<"all" | "resolved" | "unresolved">("all")
   const [draggedOrderId, setDraggedOrderId] = useState<string | null>(null)
+  const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false)
+  const [selectedOrderForDelivery, setSelectedOrderForDelivery] = useState<ServiceOrder | null>(null)
+  const [deliveryOrderDetails, setDeliveryOrderDetails] = useState<{ order: ServiceOrder | null; vehicle: Vehicle | null; client: Client | null; technician: User | null }>({
+    order: null,
+    vehicle: null,
+    client: null,
+    technician: null
+  })
   const { user } = useAuth()
 
   useEffect(() => {
@@ -790,6 +798,149 @@ export default function AdminPage() {
           </Card>
         </div>
       </DashboardLayout>
+
+      {/* Diálogo de Confirmación de Entrega */}
+      <Dialog open={deliveryDialogOpen} onOpenChange={setDeliveryDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Confirmar Entrega de Vehículo</DialogTitle>
+            <DialogDescription>
+              Revisa los detalles de la orden antes de confirmar la entrega. Se enviará un correo al cliente con toda la información.
+            </DialogDescription>
+          </DialogHeader>
+
+          {deliveryOrderDetails.order && deliveryOrderDetails.vehicle && deliveryOrderDetails.client ? (
+            <div className="space-y-6 py-4">
+              {/* Información de la Orden */}
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-lg mb-3">Información de la Orden</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Número de Orden</p>
+                      <p className="font-medium">{deliveryOrderDetails.order.orderNumber || `#${deliveryOrderDetails.order.id.slice(0, 8)}`}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Estado Actual</p>
+                      <Badge className={SERVICE_STATE_COLORS[deliveryOrderDetails.order.state]}>
+                        {SERVICE_STATE_LABELS[deliveryOrderDetails.order.state]}
+                      </Badge>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-sm text-muted-foreground">Descripción</p>
+                      <p className="font-medium">{deliveryOrderDetails.order.description}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Información del Cliente */}
+                <div>
+                  <h3 className="font-semibold text-lg mb-3">Datos del Cliente</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Nombre</p>
+                      <p className="font-medium">{deliveryOrderDetails.client.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Email</p>
+                      <p className="font-medium">{deliveryOrderDetails.client.email}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Teléfono</p>
+                      <p className="font-medium">{deliveryOrderDetails.client.phone}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Cédula</p>
+                      <p className="font-medium">{deliveryOrderDetails.client.idNumber}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Información del Vehículo */}
+                <div>
+                  <h3 className="font-semibold text-lg mb-3">Datos del Vehículo</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Marca</p>
+                      <p className="font-medium">{deliveryOrderDetails.vehicle.brand}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Modelo</p>
+                      <p className="font-medium">{deliveryOrderDetails.vehicle.model}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Placa</p>
+                      <p className="font-medium">{deliveryOrderDetails.vehicle.licensePlate}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Año</p>
+                      <p className="font-medium">{deliveryOrderDetails.vehicle.year}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cotización */}
+                {deliveryOrderDetails.order.quotation && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h3 className="font-semibold text-lg mb-3">Cotización</h3>
+                      <div className="space-y-2">
+                        {deliveryOrderDetails.order.quotation.items.map((item) => (
+                          <div key={item.id} className="flex justify-between text-sm">
+                            <span>{item.quantity}x {item.description}</span>
+                            <span className="font-medium">{formatCurrency(item.total)}</span>
+                          </div>
+                        ))}
+                        <Separator />
+                        <div className="flex justify-between font-semibold">
+                          <span>Total:</span>
+                          <span>{formatCurrency(deliveryOrderDetails.order.quotation.total)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Fotos */}
+                {(deliveryOrderDetails.order.intakePhotos?.length > 0 || deliveryOrderDetails.order.servicePhotos?.length > 0) && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h3 className="font-semibold text-lg mb-3">Fotos del Servicio</h3>
+                      <div className="grid grid-cols-3 gap-2">
+                        {deliveryOrderDetails.order.intakePhotos?.map((photo, idx) => (
+                          <img key={`intake-${idx}`} src={photo} alt={`Foto ingreso ${idx + 1}`} className="w-full h-24 object-cover rounded border" />
+                        ))}
+                        {deliveryOrderDetails.order.servicePhotos?.map((photo, idx) => (
+                          <img key={`service-${idx}`} src={photo} alt={`Foto servicio ${idx + 1}`} className="w-full h-24 object-cover rounded border" />
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="py-8 text-center text-muted-foreground">
+              <p>Cargando detalles de la orden...</p>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeliveryDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmDelivery} disabled={!deliveryOrderDetails.order}>
+              Confirmar Entrega y Enviar Email
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ProtectedRoute>
   )
 }

@@ -163,10 +163,11 @@ export default function QualityControlOrderPage() {
   }
 
   const isCompleted = !!order.qualityControlCheck
+  const orderTitle = `Control de Calidad - Orden #${order.orderNumber || order.id.slice(0, 8)}`
 
   return (
     <ProtectedRoute allowedRoles={["quality-control"]}>
-      <DashboardLayout title="Control de Calidad - Orden #{order.orderNumber || order.id.slice(0, 8)}">
+      <DashboardLayout title={orderTitle}>
         <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -345,8 +346,8 @@ export default function QualityControlOrderPage() {
               </div>
 
               {!isCompleted && (
-                <div className="flex items-center justify-between pt-4 border-t">
-                  <div className="text-sm text-muted-foreground">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 border-t">
+                  <div className="text-sm text-muted-foreground order-2 sm:order-1">
                     {isFormValid() ? (
                       <span className="text-green-600 dark:text-green-400">
                         ✓ Todas las verificaciones completadas
@@ -357,7 +358,11 @@ export default function QualityControlOrderPage() {
                       </span>
                     )}
                   </div>
-                  <Button onClick={handleSubmit} disabled={!isFormValid() || saving}>
+                  <Button 
+                    onClick={handleSubmit} 
+                    disabled={!isFormValid() || saving}
+                    className="w-full sm:w-auto order-1 sm:order-2"
+                  >
                     {saving ? "Guardando..." : "Guardar Control de Calidad"}
                   </Button>
                 </div>
