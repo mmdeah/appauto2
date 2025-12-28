@@ -199,19 +199,6 @@ function generateOrderEmailHTML(
           margin-bottom: 3px;
         }
         .history-date { color: #6b7280; font-size: 11px; }
-        .photos {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-          gap: 8px;
-          margin-top: 10px;
-        }
-        .photo {
-          width: 100%;
-          height: 80px;
-          object-fit: cover;
-          border-radius: 4px;
-          border: 1px solid #e5e7eb;
-        }
         .cta {
           background: #f0f9ff;
           border: 1px solid #3b82f6;
@@ -258,8 +245,6 @@ function generateOrderEmailHTML(
           .info-row { flex-direction: column; gap: 2px; }
           .table { font-size: 11px; }
           .table th, .table td { padding: 6px 2px; }
-          .photos { grid-template-columns: repeat(2, 1fr); }
-          .photo { height: 70px; }
         }
       </style>
     </head>
@@ -438,33 +423,6 @@ function generateOrderEmailHTML(
                 </div>
               `;
             }).join('')}
-          </div>
-          ` : ''}
-
-          <!-- Fotos -->
-          ${(order.intakePhotos && order.intakePhotos.length > 0) || (order.servicePhotos && order.servicePhotos.length > 0) ? `
-          <div class="section">
-            <div class="section-title">Fotos</div>
-            ${order.intakePhotos && order.intakePhotos.length > 0 ? `
-              <div style="margin-bottom: 10px;">
-                <div style="font-size: 12px; color: #6b7280; margin-bottom: 5px;">Ingreso</div>
-                <div class="photos">
-                  ${order.intakePhotos.map((photo: string) => `
-                    <img src="${photo.startsWith('http') ? photo : baseUrl + photo}" alt="Ingreso" class="photo" />
-                  `).join('')}
-                </div>
-              </div>
-            ` : ''}
-            ${order.servicePhotos && order.servicePhotos.length > 0 ? `
-              <div>
-                <div style="font-size: 12px; color: #6b7280; margin-bottom: 5px;">Servicio</div>
-                <div class="photos">
-                  ${order.servicePhotos.map((photo: string) => `
-                    <img src="${photo.startsWith('http') ? photo : baseUrl + photo}" alt="Servicio" class="photo" />
-                  `).join('')}
-                </div>
-              </div>
-            ` : ''}
           </div>
           ` : ''}
 
