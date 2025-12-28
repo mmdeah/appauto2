@@ -566,7 +566,6 @@ export default function ClientOrderDetailPage() {
                 )}
               </CardContent>
             </Card>
-          )}
         </div>
       </main>
 
