@@ -231,6 +231,9 @@ export default function AdminPage() {
         deliveredAt: new Date().toISOString(),
       })
 
+      // Obtener historial de estados para el email
+      const orderHistory = await getStateHistoryByOrderId(selectedOrderForDelivery.id);
+
       // Enviar email al cliente
       try {
         const emailResponse = await fetch('/api/send-email', {
@@ -243,6 +246,8 @@ export default function AdminPage() {
             order: deliveryOrderDetails.order,
             client: deliveryOrderDetails.client,
             vehicle: deliveryOrderDetails.vehicle,
+            technician: deliveryOrderDetails.technician,
+            history: orderHistory.sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime()),
           })
         });
 
