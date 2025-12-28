@@ -11,7 +11,44 @@ const app = express();
 const dbPath = path.join(__dirname, 'db.json');
 if (!fs.existsSync(dbPath)) {
   const initialData = {
-    users: [],
+    users: [
+      {
+        id: 'default-admin',
+        email: 'admin@taller.com',
+        password: 'admin123',
+        name: 'Administrador',
+        role: 'admin',
+        createdAt: '2024-01-01T00:00:00.000Z',
+        isDefault: true
+      },
+      {
+        id: 'default-client',
+        email: 'cliente@ejemplo.com',
+        password: 'cliente123',
+        name: 'Cliente Demo',
+        role: 'client',
+        createdAt: '2024-01-01T00:00:00.000Z',
+        isDefault: true
+      },
+      {
+        id: 'default-technician',
+        email: 'tecnico@taller.com',
+        password: 'tecnico123',
+        name: 'Técnico',
+        role: 'technician',
+        createdAt: '2024-01-01T00:00:00.000Z',
+        isDefault: true
+      },
+      {
+        id: 'default-quality',
+        email: 'calidad@taller.com',
+        password: 'calidad123',
+        name: 'Control de Calidad',
+        role: 'quality-control',
+        createdAt: '2024-01-01T00:00:00.000Z',
+        isDefault: true
+      }
+    ],
     clients: [],
     vehicles: [],
     service_orders: [],
@@ -21,7 +58,62 @@ if (!fs.existsSync(dbPath)) {
     reports: []
   };
   fs.writeFileSync(dbPath, JSON.stringify(initialData, null, 2));
-  console.log('✅ db.json creado con estructura inicial');
+  console.log('✅ db.json creado con estructura inicial y usuarios por defecto');
+} else {
+  // Si db.json ya existe, asegurar que los usuarios por defecto existan
+  const dbData = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+  const defaultUsers = [
+    {
+      id: 'default-admin',
+      email: 'admin@taller.com',
+      password: 'admin123',
+      name: 'Administrador',
+      role: 'admin',
+      createdAt: '2024-01-01T00:00:00.000Z',
+      isDefault: true
+    },
+    {
+      id: 'default-client',
+      email: 'cliente@ejemplo.com',
+      password: 'cliente123',
+      name: 'Cliente Demo',
+      role: 'client',
+      createdAt: '2024-01-01T00:00:00.000Z',
+      isDefault: true
+    },
+    {
+      id: 'default-technician',
+      email: 'tecnico@taller.com',
+      password: 'tecnico123',
+      name: 'Técnico',
+      role: 'technician',
+      createdAt: '2024-01-01T00:00:00.000Z',
+      isDefault: true
+    },
+    {
+      id: 'default-quality',
+      email: 'calidad@taller.com',
+      password: 'calidad123',
+      name: 'Control de Calidad',
+      role: 'quality-control',
+      createdAt: '2024-01-01T00:00:00.000Z',
+      isDefault: true
+    }
+  ];
+  
+  let usersUpdated = false;
+  defaultUsers.forEach(defaultUser => {
+    const exists = dbData.users.some(u => u.id === defaultUser.id || u.email === defaultUser.email);
+    if (!exists) {
+      dbData.users.push(defaultUser);
+      usersUpdated = true;
+    }
+  });
+  
+  if (usersUpdated) {
+    fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2));
+    console.log('✅ Usuarios por defecto agregados a db.json existente');
+  }
 }
 
 // Ahora sí crear el router (después de asegurar que db.json existe)

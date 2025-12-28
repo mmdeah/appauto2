@@ -15,6 +15,15 @@ export async function DELETE(
       );
     }
 
+    // Verificar si es un usuario por defecto
+    const defaultUserIds = ['default-admin', 'default-client', 'default-technician', 'default-quality'];
+    if (defaultUserIds.includes(id)) {
+      return Response.json(
+        { error: 'No se pueden eliminar los usuarios por defecto del sistema' },
+        { status: 403 }
+      );
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/users/${id}`, {
       method: 'DELETE'
     });
