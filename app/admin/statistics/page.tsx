@@ -7,14 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Car, Wrench } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Car, Wrench, Trash2 } from 'lucide-react';
 import { getExpenses, getRevenues, getServiceOrders, deleteRevenue } from '@/lib/db';
 import { formatCurrency } from '@/lib/utils-service';
 import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
 import type { Expense, Revenue, ServiceOrder } from '@/lib/types';
-import { Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 // Componente simple de gráfico de barras
 const BarChart = ({ data, labels, title }: { data: number[], labels: string[], title: string }) => {
