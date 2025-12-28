@@ -10,9 +10,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, FileText, Plus, Trash2 } from "lucide-react"
+import { ArrowLeft, FileText, Plus, Trash2, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
-import { getReports, getVehicles, getServiceOrders, getClients } from "@/lib/db"
+import { getReports, getVehicles, getServiceOrders, getClients, deleteReport } from "@/lib/db"
 import { generateVehicleReportHTML, printInvoice } from "@/lib/invoice-generator"
 import type { Report, Vehicle, ServiceOrder, Client } from "@/lib/types"
 
@@ -95,6 +95,21 @@ export default function ReportsPage() {
 
   const handleRemoveReport = (id: string) => {
     setVehicleReports(vehicleReports.filter(r => r.id !== id))
+  }
+
+  const handleMarkAsOk = async (reportId: string) => {
+    if (!confirm("¿Está seguro de que desea marcar este reporte como OK y eliminarlo?")) {
+      return
+    }
+
+    try {
+      await deleteReport(reportId)
+      await loadData() // Recargar la lista de reportes
+      alert("✅ Reporte marcado como OK y eliminado exitosamente")
+    } catch (error) {
+      console.error("Error al eliminar reporte:", error)
+      alert("Error al eliminar el reporte. Por favor, intente nuevamente.")
+    }
   }
 
   const handleGeneratePDF = () => {
@@ -198,6 +213,15 @@ export default function ReportsPage() {
                                 })}
                               </p>
                             </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleMarkAsOk(report.id)}
+                              className="flex-shrink-0"
+                              title="Marcar como OK y eliminar"
+                            >
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            </Button>
                           </div>
                           <Separator className="my-2" />
                           <p className="text-sm whitespace-pre-wrap line-clamp-3">{report.text}</p>

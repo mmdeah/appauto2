@@ -164,8 +164,14 @@ export function printInvoice(html: string, licensePlate: string, documentType: "
   }
 
   // Determinar el nombre del documento según el tipo
-  const documentName = documentType === "quotation" ? "Cotizacion" : "Factura"
-  const fileName = `${documentName}_${licensePlate.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`
+  // Si el licensePlate ya contiene "Reporte_", no agregar prefijo de factura
+  let fileName: string
+  if (licensePlate.startsWith("Reporte_")) {
+    fileName = `${licensePlate.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`
+  } else {
+    const documentName = documentType === "quotation" ? "Cotizacion" : "Factura"
+    fileName = `${documentName}_${licensePlate.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`
+  }
   
   // Establecer el título de la ventana con el nombre del archivo
   printWindow.document.title = fileName
