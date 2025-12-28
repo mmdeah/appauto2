@@ -51,8 +51,14 @@ export default function UsersPage() {
   }, []);
 
   const loadData = async () => {
-    const allUsers = await getUsers();
-    setUsers(allUsers);
+    try {
+      const allUsers = await getUsers();
+      console.log('[v0] Users loaded in admin:', allUsers);
+      console.log('[v0] Technicians found:', allUsers.filter(u => u.role === 'technician'));
+      setUsers(allUsers);
+    } catch (error) {
+      console.error('[v0] Error loading users:', error);
+    }
   };
 
   const resetForm = () => {

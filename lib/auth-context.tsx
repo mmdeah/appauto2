@@ -44,14 +44,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
+      console.log('[v0] Attempting login for:', email);
       const foundUser = await getUserByEmail(email);
+      console.log('[v0] User found:', foundUser ? `${foundUser.name} (${foundUser.role})` : 'Not found');
       
       if (foundUser && foundUser.password === password) {
         setUser(foundUser);
         setCurrentUser(foundUser);
+        console.log('[v0] Login successful');
         return true;
       }
       
+      console.log('[v0] Login failed: invalid password or user not found');
       return false;
     } catch (error) {
       console.error('[v0] Error during login:', error);

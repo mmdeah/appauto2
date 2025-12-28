@@ -41,7 +41,11 @@ export async function getUsers(): Promise<User[]> {
 
 export async function getUserByEmail(email: string): Promise<User | null> {
   const users = await getUsers()
-  return users.find(u => u.email === email) || null
+  console.log('[v0] Searching for user with email:', email)
+  console.log('[v0] Available users:', users.map(u => ({ email: u.email, name: u.name, role: u.role })))
+  const found = users.find(u => u.email === email) || null
+  console.log('[v0] User found:', found ? `${found.name} (${found.role})` : 'Not found')
+  return found
 }
 
 export async function saveUser(user: Partial<User> & { email: string; name: string; role: string }): Promise<User> {
