@@ -30,6 +30,7 @@ import Link from 'next/link';
 import { getUsers, saveUser } from '@/lib/db';
 import { generateId } from '@/lib/utils-service';
 import type { User, UserRole } from '@/lib/types';
+import { isDefaultUser, isDefaultUserEmail, initializeDefaultUsers } from '@/lib/init-default-users';
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -47,7 +48,11 @@ export default function UsersPage() {
   });
 
   useEffect(() => {
-    loadData();
+    const init = async () => {
+      await initializeDefaultUsers();
+      await loadData();
+    };
+    init();
   }, []);
 
   const loadData = async () => {
@@ -87,8 +92,20 @@ export default function UsersPage() {
     e.preventDefault();
     setError('');
 
+    // Verificar si es un usuario por defecto
+    if (editingUser && isDefaultUser(editingUser.id)) {
+      setError('No se pueden modificar los usuarios por defecto del sistema');
+      return;
+    }
+
     if (!formData.name || !formData.email || (!editingUser && !formData.password)) {
       setError('Por favor complete todos los campos requeridos');
+      return;
+    }
+
+    // Verificar si el email pertenece a un usuario por defecto
+    if (isDefaultUserEmail(formData.email) && (!editingUser || editingUser.email !== formData.email)) {
+      setError('Este email pertenece a un usuario por defecto y no se puede usar');
       return;
     }
 
@@ -121,6 +138,12 @@ export default function UsersPage() {
   };
 
   const handleDelete = async (userId: string) => {
+    // Verificar si es un usuario por defecto
+    if (isDefaultUser(userId)) {
+      alert('No se pueden eliminar los usuarios por defecto del sistema');
+      return;
+    }
+
     if (confirm('¿Está seguro de eliminar este usuario?')) {
       try {
         const response = await fetch(`/api/users/${userId}`, {

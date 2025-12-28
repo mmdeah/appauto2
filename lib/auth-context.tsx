@@ -19,11 +19,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session
-    const currentUser = getCurrentUser();
-    if (currentUser) {
-      // Verificar que el usuario aún existe en la API
-      getUserByEmail(currentUser.email).then(apiUser => {
+    // Inicializar usuarios por defecto
+    const initUsers = async () => {
+      const { initializeDefaultUsers } = await import('./init-default-users');
+      await initializeDefaultUsers();
+      
+      // Check for existing session
+      const currentUser = getCurrentUser();
+      if (currentUser) {
+        // Verificar que el usuario aún existe en la API
+        const apiUser = await getUserByEmail(currentUser.email);
         if (apiUser) {
           // Actualizar con datos de la API por si hubo cambios
           setUser(apiUser);
@@ -33,13 +38,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
           setCurrentUser(null);
         }
-        setIsLoading(false);
-      }).catch(() => {
-        setIsLoading(false);
-      });
-    } else {
+      }
       setIsLoading(false);
-    }
+    };
+    
+    initUsers().catch(() => {
+      setIsLoading(false);
+    });
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
