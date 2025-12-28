@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
-import { getServiceOrderById, createRevenue } from "@/lib/db"
+import { getServiceOrderById, createRevenue, deleteVehicle, deleteServiceOrder } from "@/lib/db"
 
 export default function AdminPage() {
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([])
@@ -235,6 +235,7 @@ export default function AdminPage() {
       const orderHistory = await getStateHistoryByOrderId(selectedOrderForDelivery.id);
 
       // Enviar email al cliente
+      let emailSent = false;
       try {
         const emailResponse = await fetch('/api/send-email', {
           method: 'POST',
@@ -251,12 +252,27 @@ export default function AdminPage() {
           })
         });
 
-        if (!emailResponse.ok) {
+        if (emailResponse.ok) {
+          emailSent = true;
+          // Eliminar orden y vehículo después de enviar el email exitosamente
+          try {
+            await deleteServiceOrder(selectedOrderForDelivery.id);
+            if (deliveryOrderDetails.vehicle) {
+              await deleteVehicle(deliveryOrderDetails.vehicle.id);
+            }
+            alert("✅ Orden marcada como entregada, email enviado al cliente. Orden y vehículo eliminados del sistema para ahorrar espacio.");
+          } catch (deleteError) {
+            console.error('Error deleting order/vehicle:', deleteError);
+            alert("✅ Orden marcada como entregada y email enviado, pero hubo un error al eliminar los datos del sistema.");
+          }
+        } else {
           const errorText = await emailResponse.text();
           console.error('Error sending email:', errorText);
+          alert("⚠️ Orden marcada como entregada, pero hubo un error al enviar el email. La orden se mantendrá en el sistema.");
         }
       } catch (emailError) {
         console.error('Error sending email:', emailError);
+        alert("⚠️ Orden marcada como entregada, pero hubo un error al enviar el email. La orden se mantendrá en el sistema.");
       }
 
       setDeliveryDialogOpen(false)

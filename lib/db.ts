@@ -125,6 +125,12 @@ export async function saveVehicle(
   })
 }
 
+export async function deleteVehicle(id: string): Promise<void> {
+  await apiRequest(`/vehicles/${id}`, {
+    method: 'DELETE'
+  })
+}
+
 // Service Order functions
 export async function getServiceOrders(): Promise<ServiceOrder[]> {
   return apiRequest('/orders')
