@@ -508,7 +508,7 @@ export default function AdminPage() {
                                               )}
                                             </div>
                                             </Link>
-                                            {order.state === "quality" && (
+                                            {order.state === "quality" && order.qualityControlCheck && (
                                               <div className="mt-2 pt-2 border-t">
                                                 <Button
                                                   size="sm"

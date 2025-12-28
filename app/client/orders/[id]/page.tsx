@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Car, Calendar, Wrench, Clock, CheckCircle2, ImageIcon } from 'lucide-react';
+import { ArrowLeft, Car, Calendar, Wrench, Clock, CheckCircle2, ImageIcon, MessageCircle, Star } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -15,8 +15,12 @@ import {
 } from '@/components/ui/dialog';
 // Las funciones ahora se importan desde lib/db que usa la API
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, generateId } from '@/lib/utils-service';
-import type { ServiceOrder, Vehicle, User as UserType, StateHistory } from '@/lib/types';
+import type { ServiceOrder, Vehicle, User as UserType, StateHistory, ServiceRating } from '@/lib/types';
+import { getRatingByOrderId, createRating, updateServiceOrder } from '@/lib/db';
 import Link from 'next/link';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Slider } from '@/components/ui/slider';
 
 export default function ClientOrderDetailPage() {
   const params = useParams();
@@ -28,6 +32,16 @@ export default function ClientOrderDetailPage() {
   
   const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string>('');
+  const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
+  const [rating, setRating] = useState<ServiceRating | null>(null);
+  const [ratingForm, setRatingForm] = useState({
+    serviceQuality: 5,
+    timeliness: 5,
+    communication: 5,
+    cleanliness: 5,
+    overall: 5,
+    comments: '',
+  });
 
   useEffect(() => {
     loadData();

@@ -1242,8 +1242,8 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                                 setOrder(updatedOrder)
                               }
                             } else {
-                              // Ya se envió antes: mensaje simple sin URL
-                              message = `Hola ${client.name}, te contactamos desde Automotriz Online SD sobre tu orden de servicio ${order.orderNumber || order.id.slice(0, 8)}.\n\nPuedes seguir el estado aquí: ${clientUrl}`
+                              // Ya se envió antes: mensaje con novedad
+                              message = `Hola ${client.name}, tenemos una novedad en tu vehículo ${vehicle.licensePlate}, por favor revisa su estado en: ${clientUrl}`
                             }
                             
                             // Abrir WhatsApp

@@ -47,6 +47,22 @@ export interface QualityControlCheck {
   checkedAt?: string
 }
 
+export interface ServiceRating {
+  id: string
+  serviceOrderId: string
+  clientId: string
+  ratings: {
+    serviceQuality: number // 1-5
+    timeliness: number // 1-5
+    communication: number // 1-5
+    cleanliness: number // 1-5
+    overall: number // 1-5
+  }
+  comments?: string
+  createdAt: string
+  resolved?: boolean // Si el admin ya resolvió los puntos de mejora
+}
+
 export interface ServiceOrder {
   id: string
   orderNumber?: string // Optional human-readable order number
@@ -63,6 +79,7 @@ export interface ServiceOrder {
   intakePhotos: string[] // Fotos de cómo ingresa el vehículo
   servicePhotos: string[] // Fotos del trabajo realizado por el técnico
   qualityControlCheck?: QualityControlCheck
+  rating?: ServiceRating // Calificación del cliente
   publicToken?: string // Token único para URL pública de visualización
   whatsappSent?: boolean // Indica si ya se envió el mensaje de WhatsApp inicial
   createdAt: string

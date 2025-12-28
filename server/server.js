@@ -55,7 +55,8 @@ if (!fs.existsSync(dbPath)) {
     state_history: [],
     expenses: [],
     revenues: [],
-    reports: []
+    reports: [],
+    ratings: []
   };
   fs.writeFileSync(dbPath, JSON.stringify(initialData, null, 2));
   console.log('✅ db.json creado con estructura inicial y usuarios por defecto');

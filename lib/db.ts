@@ -11,6 +11,7 @@ import type {
   DashboardStats,
   Revenue,
   Report,
+  ServiceRating,
 } from "./types"
 
 // URL base de la API (Next.js API Routes)
@@ -328,4 +329,37 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     profit,
     activeOrders,
   }
+}
+
+// Rating functions
+export async function getRatings(): Promise<ServiceRating[]> {
+  return apiRequest('/ratings')
+}
+
+export async function getRatingByOrderId(orderId: string): Promise<ServiceRating | null> {
+  try {
+    const ratings = await getRatings()
+    return ratings.find(r => r.serviceOrderId === orderId) || null
+  } catch {
+    return null
+  }
+}
+
+export async function createRating(rating: Omit<ServiceRating, "id" | "createdAt">): Promise<ServiceRating> {
+  return apiRequest('/ratings', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...rating,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+      resolved: false,
+    })
+  })
+}
+
+export async function updateRating(id: string, updates: Partial<ServiceRating>): Promise<ServiceRating> {
+  return apiRequest(`/ratings/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates)
+  })
 }
