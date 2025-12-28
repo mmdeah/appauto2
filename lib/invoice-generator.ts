@@ -811,9 +811,10 @@ function getQualityControlTemplate(): string {
  * Genera el HTML del reporte de vehículo
  */
 export function generateVehicleReportHTML(
-  report: VehicleReport,
+  reports: VehicleReport[] | VehicleReport,
   vehicle: Vehicle,
   client?: Client,
+  generalNotes?: string,
 ): string {
   const template = getVehicleReportTemplate()
 
@@ -837,17 +838,34 @@ export function generateVehicleReportHTML(
     })
   }
 
+  // Normalizar a array
+  const reportsArray = Array.isArray(reports) ? reports : [reports]
+  
+  // Obtener la fecha del primer reporte o usar la fecha actual
+  const reportDate = reportsArray.length > 0 && reportsArray[0].createdAt 
+    ? formatDateTime(reportsArray[0].createdAt)
+    : formatDateTime(new Date())
+
+  // Generar HTML para cada reporte
+  const reportsHTML = reportsArray.map((report, index) => {
+    return `
+      <div class="report-item" style="margin-bottom: ${index < reportsArray.length - 1 ? '25px' : '0'};">
+        <div class="category-badge">${escapeHtml(report.category)}</div>
+        <div class="report-text">${escapeHtml(report.text)}</div>
+      </div>
+    `
+  }).join('')
+
   let html = template
-    .replace(/\{\{REPORT_DATE\}\}/g, formatDateTime(report.createdAt))
+    .replace(/\{\{REPORT_DATE\}\}/g, reportDate)
     .replace(/\{\{VEHICLE_BRAND\}\}/g, escapeHtml(vehicle.brand))
     .replace(/\{\{VEHICLE_MODEL\}\}/g, escapeHtml(vehicle.model))
     .replace(/\{\{VEHICLE_LICENSE_PLATE\}\}/g, escapeHtml(vehicle.licensePlate))
     .replace(/\{\{VEHICLE_COLOR\}\}/g, vehicle.color ? escapeHtml(vehicle.color) : "")
     .replace(/\{\{VEHICLE_YEAR\}\}/g, vehicle.year.toString())
     .replace(/\{\{VEHICLE_VIN\}\}/g, vehicle.vin ? escapeHtml(vehicle.vin) : "")
-    .replace(/\{\{REPORT_CATEGORY\}\}/g, escapeHtml(report.category))
-    .replace(/\{\{REPORT_TEXT\}\}/g, escapeHtml(report.text))
-    .replace(/\{\{REPORT_NOTES\}\}/g, report.notes ? escapeHtml(report.notes) : "")
+    .replace(/\{\{REPORTS_LIST\}\}/g, reportsHTML)
+    .replace(/\{\{REPORT_NOTES\}\}/g, generalNotes ? escapeHtml(generalNotes) : "")
     .replace(/\{\{GENERATION_DATE\}\}/g, formatDateTime(new Date()))
 
   // Datos del cliente si están disponibles
@@ -885,7 +903,7 @@ export function generateVehicleReportHTML(
     html = html.replace(/\{\{#CLIENT_ADDRESS\}\}/g, "").replace(/\{\{\/CLIENT_ADDRESS\}\}/g, "")
   }
 
-  if (!report.notes) {
+  if (!generalNotes) {
     html = html.replace(/\{\{#REPORT_NOTES\}\}[\s\S]*?\{\{\/REPORT_NOTES\}\}/g, "")
   } else {
     html = html.replace(/\{\{#REPORT_NOTES\}\}/g, "").replace(/\{\{\/REPORT_NOTES\}\}/g, "")
@@ -1004,12 +1022,24 @@ function getVehicleReportTemplate(): string {
       text-transform: uppercase;
     }
 
+    .report-item {
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    .report-item:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
     .report-text {
       font-size: 11px;
       color: #4a4a4a;
       line-height: 1.8;
       white-space: pre-wrap;
-      margin-bottom: 15px;
+      margin-bottom: 0;
     }
 
     .notes-section {
@@ -1099,13 +1129,12 @@ function getVehicleReportTemplate(): string {
     </div>
 
     <div class="report-section">
-      <h3>Reporte Técnico</h3>
-      <div class="category-badge">{{REPORT_CATEGORY}}</div>
-      <div class="report-text">{{REPORT_TEXT}}</div>
+      <h3>Reportes Técnicos</h3>
+      {{REPORTS_LIST}}
       
       {{#REPORT_NOTES}}
       <div class="notes-section">
-        <h4>Observaciones y Notas</h4>
+        <h4>Observaciones Generales</h4>
         <p>{{REPORT_NOTES}}</p>
       </div>
       {{/REPORT_NOTES}}

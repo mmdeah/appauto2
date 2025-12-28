@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, FileText } from "lucide-react"
+import { ArrowLeft, FileText, Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { getReports, getVehicles, getServiceOrders, getClients } from "@/lib/db"
 import { generateVehicleReportHTML, printInvoice } from "@/lib/invoice-generator"
@@ -41,6 +41,14 @@ export default function ReportsPage() {
   const [reportCategory, setReportCategory] = useState("")
   const [reportText, setReportText] = useState("")
   const [reportNotes, setReportNotes] = useState("")
+  
+  // Lista de reportes agregados para el vehículo seleccionado
+  interface VehicleReportItem {
+    id: string
+    category: string
+    text: string
+  }
+  const [vehicleReports, setVehicleReports] = useState<VehicleReportItem[]>([])
 
   useEffect(() => {
     loadData()
@@ -66,9 +74,37 @@ export default function ReportsPage() {
     }
   }
 
+  const handleAddReport = () => {
+    if (!reportCategory || !reportText.trim()) {
+      alert("Por favor complete la categoría y el texto del reporte")
+      return
+    }
+
+    const newReport: VehicleReportItem = {
+      id: Date.now().toString(),
+      category: reportCategory,
+      text: reportText,
+    }
+
+    setVehicleReports([...vehicleReports, newReport])
+    
+    // Limpiar campos del formulario
+    setReportCategory("")
+    setReportText("")
+  }
+
+  const handleRemoveReport = (id: string) => {
+    setVehicleReports(vehicleReports.filter(r => r.id !== id))
+  }
+
   const handleGeneratePDF = () => {
-    if (!selectedLicensePlate || !reportCategory || !reportText.trim()) {
-      alert("Por favor complete la placa, categoría y texto del reporte")
+    if (!selectedLicensePlate) {
+      alert("Por favor seleccione una placa de vehículo")
+      return
+    }
+
+    if (vehicleReports.length === 0) {
+      alert("Por favor agregue al menos un reporte antes de generar el PDF")
       return
     }
 
@@ -83,15 +119,16 @@ export default function ReportsPage() {
       const order = orders.find(o => o.vehicleId === vehicle.id)
       const client = order ? clients.find(c => c.id === order.clientId) : undefined
 
-      const report = {
+      // Convertir los reportes al formato esperado
+      const reports = vehicleReports.map(r => ({
         licensePlate: selectedLicensePlate,
-        category: reportCategory,
-        text: reportText,
+        category: r.category,
+        text: r.text,
         notes: reportNotes || undefined,
         createdAt: new Date().toISOString(),
-      }
+      }))
 
-      const reportHTML = generateVehicleReportHTML(report, vehicle, client)
+      const reportHTML = generateVehicleReportHTML(reports, vehicle, client, reportNotes || undefined)
       printInvoice(reportHTML, `Reporte_${selectedLicensePlate}`, "invoice")
     } catch (error) {
       console.error("Error al generar el PDF:", error)
@@ -177,12 +214,18 @@ export default function ReportsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Nuevo Reporte</CardTitle>
-                  <CardDescription>Complete el formulario para generar un reporte</CardDescription>
+                  <CardDescription>Agregue múltiples reportes por categoría para el mismo vehículo</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="license-plate">Placa del Vehículo *</Label>
-                    <Select value={selectedLicensePlate} onValueChange={setSelectedLicensePlate}>
+                    <Select 
+                      value={selectedLicensePlate} 
+                      onValueChange={(value) => {
+                        setSelectedLicensePlate(value)
+                        setVehicleReports([]) // Limpiar reportes al cambiar de vehículo
+                      }}
+                    >
                       <SelectTrigger id="license-plate">
                         <SelectValue placeholder="Seleccione una placa" />
                       </SelectTrigger>
@@ -195,6 +238,37 @@ export default function ReportsPage() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Lista de reportes agregados */}
+                  {vehicleReports.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Reportes Agregados ({vehicleReports.length})</Label>
+                      <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3">
+                        {vehicleReports.map((report) => (
+                          <div key={report.id} className="flex items-start gap-2 p-2 bg-muted rounded-md">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge variant="outline" className="text-xs">
+                                  {report.category}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground line-clamp-2">{report.text}</p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveReport(report.id)}
+                              className="h-8 w-8 p-0 flex-shrink-0"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <Separator />
 
                   <div className="space-y-2">
                     <Label htmlFor="report-category">Categoría *</Label>
@@ -219,18 +293,30 @@ export default function ReportsPage() {
                       value={reportText}
                       onChange={(e) => setReportText(e.target.value)}
                       placeholder="Escriba el reporte detallado..."
-                      rows={8}
+                      rows={6}
                       className="resize-none"
                     />
                   </div>
 
+                  <Button
+                    onClick={handleAddReport}
+                    disabled={!reportCategory || !reportText.trim()}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Agregar Reporte
+                  </Button>
+
+                  <Separator />
+
                   <div className="space-y-2">
-                    <Label htmlFor="report-notes">Observaciones o Notas (Opcional)</Label>
+                    <Label htmlFor="report-notes">Observaciones Generales (Opcional)</Label>
                     <Textarea
                       id="report-notes"
                       value={reportNotes}
                       onChange={(e) => setReportNotes(e.target.value)}
-                      placeholder="Escriba observaciones adicionales..."
+                      placeholder="Escriba observaciones adicionales que aplican a todos los reportes..."
                       rows={4}
                       className="resize-none"
                     />
@@ -238,11 +324,11 @@ export default function ReportsPage() {
 
                   <Button
                     onClick={handleGeneratePDF}
-                    disabled={!selectedLicensePlate || !reportCategory || !reportText.trim()}
+                    disabled={!selectedLicensePlate || vehicleReports.length === 0}
                     className="w-full"
                   >
                     <FileText className="h-4 w-4 mr-2" />
-                    Generar PDF
+                    Generar PDF ({vehicleReports.length} {vehicleReports.length === 1 ? 'reporte' : 'reportes'})
                   </Button>
                 </CardContent>
               </Card>
