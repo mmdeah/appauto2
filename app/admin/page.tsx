@@ -764,26 +764,6 @@ export default function AdminPage() {
                                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                                     )}
                                   </Button>
-                                  {isResolved && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={async () => {
-                                        if (confirm("¿Está seguro de eliminar este reporte?")) {
-                                          try {
-                                            await deleteReport(report.id)
-                                            await loadData()
-                                          } catch (error) {
-                                            console.error("[v0] Error deleting report:", error)
-                                          }
-                                        }
-                                      }}
-                                      className="h-7 w-7 p-0 shrink-0 rounded-full hover:bg-red-100 dark:hover:bg-red-900/40"
-                                      title="Eliminar reporte"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
-                                    </Button>
-                                  )}
                                 </div>
                               </div>
                               <p className="text-[10px] text-muted-foreground">
