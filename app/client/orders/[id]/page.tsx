@@ -478,7 +478,7 @@ export default function ClientOrderDetailPage() {
                 className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white"
                 onClick={() => {
                   const phone = '573014697942';
-                  const message = `Hola, necesito información sobre mi orden de servicio ${order.orderNumber || order.id.slice(0, 8)}`;
+                  const message = `Hola, tengo dudas sobre mi vehiculo y la placa ${vehicle.licensePlate}`;
                   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
                 }}
               >
@@ -489,8 +489,7 @@ export default function ClientOrderDetailPage() {
           </Card>
 
           {/* Sistema de Calificación */}
-          {order.state === "delivered" && (
-            <Card>
+          <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Star className="h-5 w-5" />
