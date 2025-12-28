@@ -7,8 +7,15 @@ const cors = require('cors');
 
 const app = express();
 
-// ⚠️ IMPORTANTE: Crear db.json ANTES de crear el router
-const dbPath = path.join(__dirname, 'db.json');
+// ⚠️ IMPORTANTE: Usar DATA_DIR si está configurado (para Volumes en Railway), sino usar __dirname
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+const dbPath = path.join(DATA_DIR, 'db.json');
+
+// Asegurar que el directorio de datos existe
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  console.log(`✅ Directorio de datos creado: ${DATA_DIR}`);
+}
 if (!fs.existsSync(dbPath)) {
   const initialData = {
     users: [
@@ -132,7 +139,7 @@ const storage = multer.diskStorage({
       return cb(new Error('orderId y type son requeridos'));
     }
     
-    const uploadPath = path.join(__dirname, 'photos', 'orders', orderId, type);
+    const uploadPath = path.join(DATA_DIR, 'photos', 'orders', orderId, type);
     
     // Crear carpeta si no existe
     if (!fs.existsSync(uploadPath)) {
@@ -170,7 +177,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(middlewares);
 
 // Servir fotos estáticas
-app.use('/photos', express.static(path.join(__dirname, 'photos')));
+app.use('/photos', express.static(path.join(DATA_DIR, 'photos')));
 
 // Ruta para subir fotos
 app.post('/api/upload-photo', upload.single('photo'), (req, res) => {
@@ -199,7 +206,7 @@ app.delete('/api/delete-photo', (req, res) => {
   
   // Extraer ruta relativa
   const relativePath = photoUrl.replace('/photos/', '');
-  const filePath = path.join(__dirname, 'photos', relativePath);
+  const filePath = path.join(DATA_DIR, 'photos', relativePath);
   
   // Verificar que el archivo existe
   if (!fs.existsSync(filePath)) {
@@ -220,7 +227,7 @@ app.delete('/api/delete-photo', (req, res) => {
 app.use('/api', router);
 
 // Crear carpeta de fotos si no existe
-const photosDir = path.join(__dirname, 'photos', 'orders');
+const photosDir = path.join(DATA_DIR, 'photos', 'orders');
 if (!fs.existsSync(photosDir)) {
   fs.mkdirSync(photosDir, { recursive: true });
   console.log('✅ Carpeta de fotos creada');
@@ -229,8 +236,9 @@ if (!fs.existsSync(photosDir)) {
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`✅ Servidor JSON corriendo en puerto ${PORT}`);
+  console.log(`📁 Directorio de datos: ${DATA_DIR}`);
   console.log(`📁 Base de datos: ${dbPath}`);
-  console.log(`📸 Fotos guardadas en: ${path.join(__dirname, 'photos')}`);
+  console.log(`📸 Fotos guardadas en: ${path.join(DATA_DIR, 'photos')}`);
   console.log(`🌐 API disponible en: http://localhost:${PORT}/api`);
 });
 
