@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { User } from './types';
-import { getCurrentUser, setCurrentUser, getUserByEmail, initializeDemoData } from './storage';
+import { getCurrentUser, setCurrentUser } from './storage';
+import { getUserByEmail } from './db';
 
 interface AuthContextType {
   user: User | null;
@@ -18,25 +19,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize demo data on first load
-    initializeDemoData();
-    
     // Check for existing session
     const currentUser = getCurrentUser();
-    setUser(currentUser);
-    setIsLoading(false);
+    if (currentUser) {
+      // Verificar que el usuario aún existe en la API
+      getUserByEmail(currentUser.email).then(apiUser => {
+        if (apiUser) {
+          // Actualizar con datos de la API por si hubo cambios
+          setUser(apiUser);
+          setCurrentUser(apiUser);
+        } else {
+          // Usuario no existe en la API, limpiar sesión
+          setUser(null);
+          setCurrentUser(null);
+        }
+        setIsLoading(false);
+      }).catch(() => {
+        setIsLoading(false);
+      });
+    } else {
+      setIsLoading(false);
+    }
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    const foundUser = getUserByEmail(email);
-    
-    if (foundUser && foundUser.password === password) {
-      setUser(foundUser);
-      setCurrentUser(foundUser);
-      return true;
+    try {
+      const foundUser = await getUserByEmail(email);
+      
+      if (foundUser && foundUser.password === password) {
+        setUser(foundUser);
+        setCurrentUser(foundUser);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('[v0] Error during login:', error);
+      return false;
     }
-    
-    return false;
   };
 
   const logout = () => {
