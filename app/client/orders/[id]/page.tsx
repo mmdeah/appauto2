@@ -13,14 +13,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-// Las funciones ahora se importan desde lib/db que usa la API
-import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, generateId } from '@/lib/utils-service';
+import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS } from '@/lib/utils-service';
 import type { ServiceOrder, Vehicle, User as UserType, StateHistory, ServiceRating } from '@/lib/types';
-import { getRatingByOrderId, createRating, updateServiceOrder } from '@/lib/db';
+import { getRatingByOrderId, createRating, updateServiceOrder, updateRating } from '@/lib/db';
 import Link from 'next/link';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Slider } from '@/components/ui/slider';
 
 export default function ClientOrderDetailPage() {
   const params = useParams();
@@ -60,10 +58,11 @@ export default function ClientOrderDetailPage() {
 
       setOrder(foundOrder);
 
-      const [allVehicles, allUsers, orderHistory] = await Promise.all([
+      const [allVehicles, allUsers, orderHistory, existingRating] = await Promise.all([
         getVehicles(),
         getUsers(),
-        getStateHistoryByOrderId(foundOrder.id)
+        getStateHistoryByOrderId(foundOrder.id),
+        getRatingByOrderId(foundOrder.id)
       ]);
 
       const foundVehicle = allVehicles.find(v => v.id === foundOrder.vehicleId);
@@ -77,9 +76,62 @@ export default function ClientOrderDetailPage() {
       setHistory(orderHistory.sort((a, b) => 
         new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime()
       ));
+
+      if (existingRating) {
+        setRating(existingRating);
+        setRatingForm({
+          serviceQuality: existingRating.ratings.serviceQuality,
+          timeliness: existingRating.ratings.timeliness,
+          communication: existingRating.ratings.communication,
+          cleanliness: existingRating.ratings.cleanliness,
+          overall: existingRating.ratings.overall,
+          comments: existingRating.comments || '',
+        });
+      }
     } catch (error) {
       console.error('[v0] Error loading order data:', error);
       router.push('/client');
+    }
+  };
+
+  const handleSubmitRating = async () => {
+    if (!order) return;
+
+    try {
+      const ratingData = {
+        serviceOrderId: order.id,
+        clientId: order.clientId,
+        ratings: {
+          serviceQuality: ratingForm.serviceQuality,
+          timeliness: ratingForm.timeliness,
+          communication: ratingForm.communication,
+          cleanliness: ratingForm.cleanliness,
+          overall: ratingForm.overall,
+        },
+        comments: ratingForm.comments,
+      };
+
+      if (rating) {
+        await updateRating(rating.id, ratingData);
+      } else {
+        await createRating(ratingData);
+      }
+
+      // Actualizar la orden con la calificación
+      await updateServiceOrder(order.id, {
+        rating: {
+          ...ratingData,
+          id: rating?.id || Date.now().toString(),
+          createdAt: rating?.createdAt || new Date().toISOString(),
+          resolved: false,
+        }
+      });
+
+      setRatingDialogOpen(false);
+      await loadData();
+    } catch (error) {
+      console.error('[v0] Error submitting rating:', error);
+      alert('Error al guardar la calificación. Por favor intente nuevamente.');
     }
   };
 
@@ -418,8 +470,242 @@ export default function ClientOrderDetailPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Botón de Contacto WhatsApp */}
+          <Card>
+            <CardContent className="p-6">
+              <Button
+                className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white"
+                onClick={() => {
+                  const phone = '573014697942';
+                  const message = `Hola, necesito información sobre mi orden de servicio ${order.orderNumber || order.id.slice(0, 8)}`;
+                  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+                }}
+              >
+                <MessageCircle className="h-4 w-4" />
+                Hablar con un Asesor
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Sistema de Calificación */}
+          {order.state === "delivered" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Star className="h-5 w-5" />
+                  Califica nuestro Servicio
+                </CardTitle>
+                <CardDescription>
+                  Tu opinión nos ayuda a mejorar
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {rating ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Calidad del Servicio</p>
+                        <div className="flex gap-1 mt-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`h-5 w-5 ${star <= rating.ratings.serviceQuality ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Puntualidad</p>
+                        <div className="flex gap-1 mt-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`h-5 w-5 ${star <= rating.ratings.timeliness ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Comunicación</p>
+                        <div className="flex gap-1 mt-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`h-5 w-5 ${star <= rating.ratings.communication ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Limpieza</p>
+                        <div className="flex gap-1 mt-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`h-5 w-5 ${star <= rating.ratings.cleanliness ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    {rating.comments && (
+                      <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+                        <p className="text-sm font-medium mb-1">Comentarios</p>
+                        <p className="text-sm text-muted-foreground">{rating.comments}</p>
+                      </div>
+                    )}
+                    <Button variant="outline" onClick={() => setRatingDialogOpen(true)}>
+                      Editar Calificación
+                    </Button>
+                  </div>
+                ) : (
+                  <Button onClick={() => setRatingDialogOpen(true)} className="w-full">
+                    <Star className="h-4 w-4 mr-2" />
+                    Calificar Servicio
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </main>
+
+      {/* Diálogo de Calificación */}
+      <Dialog open={ratingDialogOpen} onOpenChange={setRatingDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Califica nuestro Servicio</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="space-y-4">
+              <div>
+                <Label className="mb-2 block">Calidad del Servicio</Label>
+                <div className="flex items-center gap-4">
+                  <div className="flex gap-1 flex-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setRatingForm({ ...ratingForm, serviceQuality: star })}
+                        className="focus:outline-none"
+                      >
+                        <Star
+                          className={`h-8 w-8 transition-colors ${star <= ratingForm.serviceQuality ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-300'}`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-sm text-muted-foreground w-12 text-right">{ratingForm.serviceQuality}/5</span>
+                </div>
+              </div>
+
+              <div>
+                <Label className="mb-2 block">Puntualidad</Label>
+                <div className="flex items-center gap-4">
+                  <div className="flex gap-1 flex-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setRatingForm({ ...ratingForm, timeliness: star })}
+                        className="focus:outline-none"
+                      >
+                        <Star
+                          className={`h-8 w-8 transition-colors ${star <= ratingForm.timeliness ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-300'}`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-sm text-muted-foreground w-12 text-right">{ratingForm.timeliness}/5</span>
+                </div>
+              </div>
+
+              <div>
+                <Label className="mb-2 block">Comunicación</Label>
+                <div className="flex items-center gap-4">
+                  <div className="flex gap-1 flex-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setRatingForm({ ...ratingForm, communication: star })}
+                        className="focus:outline-none"
+                      >
+                        <Star
+                          className={`h-8 w-8 transition-colors ${star <= ratingForm.communication ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-300'}`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-sm text-muted-foreground w-12 text-right">{ratingForm.communication}/5</span>
+                </div>
+              </div>
+
+              <div>
+                <Label className="mb-2 block">Limpieza</Label>
+                <div className="flex items-center gap-4">
+                  <div className="flex gap-1 flex-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setRatingForm({ ...ratingForm, cleanliness: star })}
+                        className="focus:outline-none"
+                      >
+                        <Star
+                          className={`h-8 w-8 transition-colors ${star <= ratingForm.cleanliness ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-300'}`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-sm text-muted-foreground w-12 text-right">{ratingForm.cleanliness}/5</span>
+                </div>
+              </div>
+
+              <div>
+                <Label className="mb-2 block">Calificación General</Label>
+                <div className="flex items-center gap-4">
+                  <div className="flex gap-1 flex-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setRatingForm({ ...ratingForm, overall: star })}
+                        className="focus:outline-none"
+                      >
+                        <Star
+                          className={`h-8 w-8 transition-colors ${star <= ratingForm.overall ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-300'}`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-sm text-muted-foreground w-12 text-right">{ratingForm.overall}/5</span>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="comments" className="mb-2 block">Comentarios (opcional)</Label>
+                <Textarea
+                  id="comments"
+                  value={ratingForm.comments}
+                  onChange={(e) => setRatingForm({ ...ratingForm, comments: e.target.value })}
+                  placeholder="Comparte tus comentarios sobre el servicio..."
+                  rows={4}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setRatingDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSubmitRating}>
+              Enviar Calificación
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={photoDialogOpen} onOpenChange={setPhotoDialogOpen}>
         <DialogContent className="max-w-4xl">
