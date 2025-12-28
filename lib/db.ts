@@ -283,6 +283,12 @@ export async function createRevenue(revenue: Omit<Revenue, "id" | "created_at">)
   })
 }
 
+export async function deleteRevenue(id: string): Promise<void> {
+  return apiRequest(`/revenues/${id}`, {
+    method: 'DELETE'
+  })
+}
+
 // Report functions
 export async function getReports(): Promise<Report[]> {
   return apiRequest('/reports')

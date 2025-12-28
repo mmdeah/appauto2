@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Car, Wrench } from 'lucide-react';
-import { getExpenses, getRevenues, getServiceOrders } from '@/lib/db';
+import { getExpenses, getRevenues, getServiceOrders, deleteRevenue } from '@/lib/db';
 import { formatCurrency } from '@/lib/utils-service';
 import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
 import type { Expense, Revenue, ServiceOrder } from '@/lib/types';
+import { Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 // Componente simple de gráfico de barras
 const BarChart = ({ data, labels, title }: { data: number[], labels: string[], title: string }) => {
@@ -106,6 +108,18 @@ export default function StatisticsPage() {
       console.error('[v0] Error loading statistics:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteRevenue = async (id: string) => {
+    if (!confirm('¿Estás seguro de eliminar este ingreso? Esta acción no se puede deshacer.')) return;
+
+    try {
+      await deleteRevenue(id);
+      await loadData();
+    } catch (error) {
+      console.error('[v0] Error deleting revenue:', error);
+      alert('Error al eliminar el ingreso. Por favor intenta nuevamente.');
     }
   };
 
@@ -397,6 +411,66 @@ export default function StatisticsPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Lista de Ingresos */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Listado de Ingresos</CardTitle>
+              <CardDescription>
+                Todos los ingresos registrados en el sistema ({filteredRevenues.length})
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {filteredRevenues.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No hay ingresos registrados para el año {selectedYear}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredRevenues
+                    .sort((a, b) => {
+                      const dateA = new Date(a.date || a.created_at).getTime();
+                      const dateB = new Date(b.date || b.created_at).getTime();
+                      return dateB - dateA; // Más recientes primero
+                    })
+                    .map((revenue) => (
+                      <div
+                        key={revenue.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center gap-3">
+                            <h4 className="font-semibold">{revenue.description || `Ingreso de orden ${revenue.serviceOrderId?.slice(0, 8) || 'N/A'}`}</h4>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(revenue.date || revenue.created_at).toLocaleDateString('es-ES', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                            {formatCurrency(revenue.amount)}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteRevenue(revenue.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </DashboardLayout>
     </ProtectedRoute>
