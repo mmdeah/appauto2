@@ -409,6 +409,12 @@ export default function AdminPage() {
                 Historial de Gastos
               </Link>
             </Button>
+            <Button variant="outline" asChild size="lg" className="shadow-sm">
+              <Link href="/admin/statistics">
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Estadísticas
+              </Link>
+            </Button>
           </div>
 
           {/* Recent Service Orders */}
