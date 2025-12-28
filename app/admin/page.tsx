@@ -6,7 +6,7 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Car, Users, Wrench, TrendingUp, DollarSign, TrendingDown, Search, Filter, AlertCircle, CheckCircle2, XCircle, User, Calendar, ListChecks, CheckCircle, Clock, Trash2 } from "lucide-react"
+import { Plus, Car, Users, Wrench, TrendingUp, DollarSign, TrendingDown, Search, Filter, AlertCircle, CheckCircle2, XCircle, User, Calendar, ListChecks, CheckCircle, Clock, Trash2, Package } from "lucide-react"
 import { getServiceOrders, getVehicles, getUsers, getClients, getDashboardStats, getReports, updateReport, deleteReport, updateServiceOrder, createStateHistory } from "@/lib/db"
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, formatCurrency } from "@/lib/utils-service"
 import type { ServiceOrder, Vehicle, User, Client, Report, ServiceState } from "@/lib/types"
@@ -14,6 +14,9 @@ import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Separator } from "@/components/ui/separator"
+import { getServiceOrderById, createRevenue } from "@/lib/db"
 
 export default function AdminPage() {
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([])
@@ -354,22 +357,23 @@ export default function AdminPage() {
                                             isDragging ? "opacity-50" : ""
                                           }`}
                                         >
-                                          <Link
-                                            href={`/admin/orders/${order.id}`}
-                                            className="block p-3 bg-card border rounded-lg hover:shadow-md transition-all hover:border-primary/50"
-                                            onClick={(e) => {
-                                              // Prevenir navegación si estamos arrastrando
-                                              if (draggedOrderId) {
-                                                e.preventDefault()
-                                              }
-                                            }}
-                                          >
-                                            <div className="space-y-2">
-                                              <div className="flex items-start justify-between gap-2">
-                                                <h4 className="font-semibold text-base">
-                                                  {order.orderNumber || `#${order.id.slice(0, 8)}`}
-                                                </h4>
-                                              </div>
+                                          <div className="p-3 bg-card border rounded-lg hover:shadow-md transition-all">
+                                            <Link
+                                              href={`/admin/orders/${order.id}`}
+                                              className="block"
+                                              onClick={(e) => {
+                                                // Prevenir navegación si estamos arrastrando o haciendo click en el botón
+                                                if (draggedOrderId) {
+                                                  e.preventDefault()
+                                                }
+                                              }}
+                                            >
+                                              <div className="space-y-2">
+                                                <div className="flex items-start justify-between gap-2">
+                                                  <h4 className="font-semibold text-base">
+                                                    {order.orderNumber || `#${order.id.slice(0, 8)}`}
+                                                  </h4>
+                                                </div>
                                               {vehicle && (
                                                 <div className="text-sm text-muted-foreground">
                                                   <p className="font-medium">{vehicle.brand} {vehicle.model}</p>
@@ -430,7 +434,24 @@ export default function AdminPage() {
                                                 </div>
                                               )}
                                             </div>
-                                          </Link>
+                                            </Link>
+                                            {order.state === "quality" && (
+                                              <div className="mt-2 pt-2 border-t">
+                                                <Button
+                                                  size="sm"
+                                                  className="w-full"
+                                                  onClick={(e) => {
+                                                    e.preventDefault()
+                                                    e.stopPropagation()
+                                                    handleOpenDeliveryDialog(order)
+                                                  }}
+                                                >
+                                                  <Package className="h-4 w-4 mr-2" />
+                                                  Entregar
+                                                </Button>
+                                              </div>
+                                            )}
+                                          </div>
                                         </div>
                                       )
                                     })
@@ -644,8 +665,23 @@ export default function AdminPage() {
                                     size="sm"
                                     onClick={async () => {
                                       try {
-                                        await updateReport(report.id, { resolved: !isResolved })
-                                        await loadData()
+                                        if (!isResolved) {
+                                          // Marcar como resuelto
+                                          await updateReport(report.id, { resolved: true })
+                                          // Esperar un momento y luego eliminar automáticamente
+                                          setTimeout(async () => {
+                                            try {
+                                              await deleteReport(report.id)
+                                              await loadData()
+                                            } catch (error) {
+                                              console.error("[v0] Error deleting report:", error)
+                                            }
+                                          }, 500)
+                                        } else {
+                                          // Desmarcar como resuelto
+                                          await updateReport(report.id, { resolved: false })
+                                          await loadData()
+                                        }
                                       } catch (error) {
                                         console.error("[v0] Error updating report:", error)
                                       }

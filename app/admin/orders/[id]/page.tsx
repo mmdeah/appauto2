@@ -585,12 +585,6 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                 <Trash2 className="h-4 w-4 mr-2" />
                 Eliminar Orden
               </Button>
-              {order.state !== "delivered" && (
-                <Button onClick={() => setDeliveryDialogOpen(true)} disabled={isSaving}>
-                  <Package className="h-4 w-4 mr-2" />
-                  Marcar como Entregado
-                </Button>
-              )}
             </div>
           </div>
 
