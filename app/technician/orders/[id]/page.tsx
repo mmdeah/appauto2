@@ -42,6 +42,7 @@ export default function TechnicianOrderDetailPage() {
   const [reportText, setReportText] = useState("")
 
   const REPORT_CATEGORIES = [
+    "General",
     "Motor",
     "Suspensión",
     "Frenos",

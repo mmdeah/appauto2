@@ -6,7 +6,7 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Car, Users, Wrench, TrendingUp, DollarSign, TrendingDown, Search, Filter, AlertCircle, CheckCircle2, XCircle, User, Calendar, ListChecks, CheckCircle, Clock, Trash2, Package, Star } from "lucide-react"
+import { Plus, Car, Users, Wrench, TrendingUp, DollarSign, TrendingDown, Search, Filter, AlertCircle, CheckCircle2, XCircle, User, Calendar, ListChecks, CheckCircle, Clock, Trash2, Package, Star, FileText } from "lucide-react"
 import { getServiceOrders, getVehicles, getUsers, getClients, getDashboardStats, getReports, updateReport, deleteReport, updateServiceOrder, createStateHistory, getRatings, updateRating, getStateHistoryByOrderId } from "@/lib/db"
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, formatCurrency } from "@/lib/utils-service"
 import type { ServiceOrder, Vehicle, User, Client, Report, ServiceState } from "@/lib/types"
@@ -413,6 +413,12 @@ export default function AdminPage() {
               <Link href="/admin/statistics">
                 <TrendingUp className="h-4 w-4 mr-2" />
                 Estadísticas
+              </Link>
+            </Button>
+            <Button variant="outline" asChild size="lg" className="shadow-sm">
+              <Link href="/admin/reports">
+                <FileText className="h-4 w-4 mr-2" />
+                Reportes
               </Link>
             </Button>
           </div>

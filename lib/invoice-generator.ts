@@ -1,4 +1,12 @@
 import type { ServiceOrder, Client, Vehicle, QuotationItem, QualityControlCheck } from "./types"
+
+export interface VehicleReport {
+  licensePlate: string
+  category: string
+  text: string
+  notes?: string
+  createdAt: string
+}
 import { formatCurrency } from "./utils-service"
 
 /**
@@ -792,6 +800,319 @@ function getQualityControlTemplate(): string {
 
     <div class="footer">
       <p><strong>Control de Calidad Completado</strong></p>
+      <p>Documento generado el {{GENERATION_DATE}}</p>
+    </div>
+  </div>
+</body>
+</html>`
+}
+
+/**
+ * Genera el HTML del reporte de vehículo
+ */
+export function generateVehicleReportHTML(
+  report: VehicleReport,
+  vehicle: Vehicle,
+  client?: Client,
+): string {
+  const template = getVehicleReportTemplate()
+
+  const formatDate = (date: string | Date) => {
+    const d = typeof date === "string" ? new Date(date) : date
+    return d.toLocaleDateString("es-CO", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })
+  }
+
+  const formatDateTime = (date: string | Date) => {
+    const d = typeof date === "string" ? new Date(date) : date
+    return d.toLocaleString("es-CO", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
+  let html = template
+    .replace(/\{\{REPORT_DATE\}\}/g, formatDateTime(report.createdAt))
+    .replace(/\{\{VEHICLE_BRAND\}\}/g, escapeHtml(vehicle.brand))
+    .replace(/\{\{VEHICLE_MODEL\}\}/g, escapeHtml(vehicle.model))
+    .replace(/\{\{VEHICLE_LICENSE_PLATE\}\}/g, escapeHtml(vehicle.licensePlate))
+    .replace(/\{\{VEHICLE_COLOR\}\}/g, vehicle.color ? escapeHtml(vehicle.color) : "")
+    .replace(/\{\{VEHICLE_YEAR\}\}/g, vehicle.year.toString())
+    .replace(/\{\{VEHICLE_VIN\}\}/g, vehicle.vin ? escapeHtml(vehicle.vin) : "")
+    .replace(/\{\{REPORT_CATEGORY\}\}/g, escapeHtml(report.category))
+    .replace(/\{\{REPORT_TEXT\}\}/g, escapeHtml(report.text))
+    .replace(/\{\{REPORT_NOTES\}\}/g, report.notes ? escapeHtml(report.notes) : "")
+    .replace(/\{\{GENERATION_DATE\}\}/g, formatDateTime(new Date()))
+
+  // Datos del cliente si están disponibles
+  if (client) {
+    html = html
+      .replace(/\{\{CLIENT_NAME\}\}/g, escapeHtml(client.name))
+      .replace(/\{\{CLIENT_ID_NUMBER\}\}/g, escapeHtml(client.idNumber))
+      .replace(/\{\{CLIENT_PHONE\}\}/g, escapeHtml(client.phone))
+      .replace(/\{\{CLIENT_EMAIL\}\}/g, escapeHtml(client.email))
+      .replace(/\{\{CLIENT_ADDRESS\}\}/g, client.address ? escapeHtml(client.address) : "")
+  } else {
+    html = html.replace(/\{\{CLIENT_NAME\}\}/g, "N/A")
+      .replace(/\{\{CLIENT_ID_NUMBER\}\}/g, "N/A")
+      .replace(/\{\{CLIENT_PHONE\}\}/g, "N/A")
+      .replace(/\{\{CLIENT_EMAIL\}\}/g, "N/A")
+      .replace(/\{\{CLIENT_ADDRESS\}\}/g, "")
+  }
+
+  // Procesar condicionales para campos opcionales
+  if (!vehicle.color) {
+    html = html.replace(/\{\{#VEHICLE_COLOR\}\}[\s\S]*?\{\{\/VEHICLE_COLOR\}\}/g, "")
+  } else {
+    html = html.replace(/\{\{#VEHICLE_COLOR\}\}/g, "").replace(/\{\{\/VEHICLE_COLOR\}\}/g, "")
+  }
+
+  if (!vehicle.vin) {
+    html = html.replace(/\{\{#VEHICLE_VIN\}\}[\s\S]*?\{\{\/VEHICLE_VIN\}\}/g, "")
+  } else {
+    html = html.replace(/\{\{#VEHICLE_VIN\}\}/g, "").replace(/\{\{\/VEHICLE_VIN\}\}/g, "")
+  }
+
+  if (!client?.address) {
+    html = html.replace(/\{\{#CLIENT_ADDRESS\}\}[\s\S]*?\{\{\/CLIENT_ADDRESS\}\}/g, "")
+  } else {
+    html = html.replace(/\{\{#CLIENT_ADDRESS\}\}/g, "").replace(/\{\{\/CLIENT_ADDRESS\}\}/g, "")
+  }
+
+  if (!report.notes) {
+    html = html.replace(/\{\{#REPORT_NOTES\}\}[\s\S]*?\{\{\/REPORT_NOTES\}\}/g, "")
+  } else {
+    html = html.replace(/\{\{#REPORT_NOTES\}\}/g, "").replace(/\{\{\/REPORT_NOTES\}\}/g, "")
+  }
+
+  return html
+}
+
+/**
+ * Obtiene la plantilla HTML para reporte de vehículo
+ */
+function getVehicleReportTemplate(): string {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reporte de Vehículo - {{VEHICLE_LICENSE_PLATE}}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #1a1a1a;
+      background: #fff;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+    }
+
+    .header {
+      text-align: left;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    .document-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: #1a1a1a;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 25px;
+    }
+
+    .info-box {
+      padding: 0;
+    }
+
+    .info-box h3 {
+      font-size: 10px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #e5e5e5;
+      padding-bottom: 6px;
+    }
+
+    .info-box p {
+      margin: 5px 0;
+      font-size: 11px;
+      color: #4a4a4a;
+    }
+
+    .info-box strong {
+      color: #1a1a1a;
+      font-weight: 500;
+    }
+
+    .report-section {
+      margin-top: 30px;
+      padding: 20px;
+      background: #f8fafc;
+      border-left: 4px solid #1a1a1a;
+      border-radius: 4px;
+    }
+
+    .report-section h3 {
+      font-size: 10px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 15px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .category-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      background: #1a1a1a;
+      color: white;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      text-transform: uppercase;
+    }
+
+    .report-text {
+      font-size: 11px;
+      color: #4a4a4a;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      margin-bottom: 15px;
+    }
+
+    .notes-section {
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid #e5e5e5;
+    }
+
+    .notes-section h4 {
+      font-size: 10px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .notes-section p {
+      font-size: 11px;
+      color: #4a4a4a;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .footer {
+      margin-top: 35px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e5e5;
+      text-align: center;
+      color: #999;
+      font-size: 9px;
+      line-height: 1.6;
+    }
+
+    @media print {
+      body {
+        padding: 0;
+        background: white;
+      }
+
+      .container {
+        padding: 20px;
+        max-width: 100%;
+      }
+
+      @page {
+        margin: 1.5cm;
+        size: A4;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="document-title">Reporte de Vehículo</div>
+    </div>
+
+    <div class="info-box" style="margin-bottom: 15px;">
+      <h3>Información del Reporte</h3>
+      <p><strong>Fecha de Emisión:</strong> {{REPORT_DATE}}</p>
+    </div>
+
+    <div class="info-grid">
+      <div class="info-box">
+        <h3>Datos del Cliente</h3>
+        <p><strong>{{CLIENT_NAME}}</strong></p>
+        <p>Cédula: {{CLIENT_ID_NUMBER}}</p>
+        <p>Teléfono: {{CLIENT_PHONE}}</p>
+        <p>Email: {{CLIENT_EMAIL}}</p>
+        {{#CLIENT_ADDRESS}}
+        <p>Dirección: {{CLIENT_ADDRESS}}</p>
+        {{/CLIENT_ADDRESS}}
+      </div>
+      <div class="info-box">
+        <h3>Datos del Vehículo</h3>
+        <p><strong>{{VEHICLE_BRAND}} {{VEHICLE_MODEL}}</strong></p>
+        <p>Placa: {{VEHICLE_LICENSE_PLATE}}</p>
+        {{#VEHICLE_COLOR}}
+        <p>Color: {{VEHICLE_COLOR}}</p>
+        {{/VEHICLE_COLOR}}
+        <p>Año: {{VEHICLE_YEAR}}</p>
+        {{#VEHICLE_VIN}}
+        <p>VIN: {{VEHICLE_VIN}}</p>
+        {{/VEHICLE_VIN}}
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h3>Reporte Técnico</h3>
+      <div class="category-badge">{{REPORT_CATEGORY}}</div>
+      <div class="report-text">{{REPORT_TEXT}}</div>
+      
+      {{#REPORT_NOTES}}
+      <div class="notes-section">
+        <h4>Observaciones y Notas</h4>
+        <p>{{REPORT_NOTES}}</p>
+      </div>
+      {{/REPORT_NOTES}}
+    </div>
+
+    <div class="footer">
+      <p><strong>Reporte Técnico de Vehículo</strong></p>
       <p>Documento generado el {{GENERATION_DATE}}</p>
     </div>
   </div>
