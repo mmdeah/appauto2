@@ -6,8 +6,8 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Car, Users, Wrench, TrendingUp, DollarSign, TrendingDown, Search, Filter, AlertCircle, CheckCircle2, XCircle, User, Calendar, ListChecks, CheckCircle, Clock, Trash2, Package } from "lucide-react"
-import { getServiceOrders, getVehicles, getUsers, getClients, getDashboardStats, getReports, updateReport, deleteReport, updateServiceOrder, createStateHistory } from "@/lib/db"
+import { Plus, Car, Users, Wrench, TrendingUp, DollarSign, TrendingDown, Search, Filter, AlertCircle, CheckCircle2, XCircle, User, Calendar, ListChecks, CheckCircle, Clock, Trash2, Package, Star } from "lucide-react"
+import { getServiceOrders, getVehicles, getUsers, getClients, getDashboardStats, getReports, updateReport, deleteReport, updateServiceOrder, createStateHistory, getRatings, updateRating } from "@/lib/db"
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, formatCurrency } from "@/lib/utils-service"
 import type { ServiceOrder, Vehicle, User, Client, Report, ServiceState } from "@/lib/types"
 import { useAuth } from "@/lib/auth-context"
@@ -24,6 +24,7 @@ export default function AdminPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [technicians, setTechnicians] = useState<User[]>([])
   const [reports, setReports] = useState<Report[]>([])
+  const [ratings, setRatings] = useState<any[]>([])
   const [stats, setStats] = useState({
     vehiclesServed: 0,
     averageTicket: 0,
@@ -230,9 +231,28 @@ export default function AdminPage() {
         deliveredAt: new Date().toISOString(),
       })
 
-      // TODO: Aquí se enviará el email al cliente con toda la información
-      // Por ahora solo mostramos un mensaje
-      alert("Orden marcada como entregada. El email se enviará próximamente.")
+      // Enviar email al cliente
+      try {
+        const emailResponse = await fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: deliveryOrderDetails.client.email,
+            subject: `Orden de Servicio #${deliveryOrderDetails.order.orderNumber || selectedOrderForDelivery.id.slice(0, 8)} - Vehículo Listo`,
+            html: '<p>Su orden de servicio ha sido completada y está lista para ser entregada.</p>',
+            order: deliveryOrderDetails.order,
+            client: deliveryOrderDetails.client,
+            vehicle: deliveryOrderDetails.vehicle,
+          })
+        });
+
+        if (!emailResponse.ok) {
+          const errorText = await emailResponse.text();
+          console.error('Error sending email:', errorText);
+        }
+      } catch (emailError) {
+        console.error('Error sending email:', emailError);
+      }
 
       setDeliveryDialogOpen(false)
       setSelectedOrderForDelivery(null)
@@ -801,6 +821,134 @@ export default function AdminPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Calificaciones Pendientes */}
+          {ratings.filter(r => !r.resolved).length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Star className="h-5 w-5" />
+                  Calificaciones Pendientes de Revisar
+                </CardTitle>
+                <CardDescription>Puntos de mejora identificados por los clientes</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {ratings
+                    .filter(r => !r.resolved)
+                    .map((rating) => {
+                      const order = serviceOrders.find(o => o.id === rating.serviceOrderId);
+                      const vehicle = order ? vehicles.find(v => v.id === order.vehicleId) : null;
+                      const client = order ? clients.find(c => c.id === order.clientId) : null;
+                      const avgRating = (
+                        rating.ratings.serviceQuality +
+                        rating.ratings.timeliness +
+                        rating.ratings.communication +
+                        rating.ratings.cleanliness +
+                        rating.ratings.overall
+                      ) / 5;
+
+                      return (
+                        <div key={rating.id} className="p-4 border rounded-lg space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h4 className="font-semibold">
+                                  {vehicle ? `${vehicle.brand} ${vehicle.model} - ${vehicle.licensePlate}` : 'Orden sin vehículo'}
+                                </h4>
+                                {order && (
+                                  <Badge variant="outline">
+                                    Orden #{order.orderNumber || order.id.slice(0, 8)}
+                                  </Badge>
+                                )}
+                              </div>
+                              {client && (
+                                <p className="text-sm text-muted-foreground mb-2">
+                                  Cliente: {client.name}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-4 text-sm">
+                                <div>
+                                  <span className="text-muted-foreground">Calidad:</span>
+                                  <div className="flex gap-0.5">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <Star
+                                        key={star}
+                                        className={`h-4 w-4 ${star <= rating.ratings.serviceQuality ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Puntualidad:</span>
+                                  <div className="flex gap-0.5">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <Star
+                                        key={star}
+                                        className={`h-4 w-4 ${star <= rating.ratings.timeliness ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Comunicación:</span>
+                                  <div className="flex gap-0.5">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <Star
+                                        key={star}
+                                        className={`h-4 w-4 ${star <= rating.ratings.communication ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Limpieza:</span>
+                                  <div className="flex gap-0.5">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <Star
+                                        key={star}
+                                        className={`h-4 w-4 ${star <= rating.ratings.cleanliness ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Promedio:</span>
+                                  <span className="font-semibold ml-1">{avgRating.toFixed(1)}/5</span>
+                                </div>
+                              </div>
+                              {rating.comments && (
+                                <div className="mt-3 p-3 bg-muted/50 rounded-lg">
+                                  <p className="text-sm font-medium mb-1">Comentarios del Cliente:</p>
+                                  <p className="text-sm text-muted-foreground">{rating.comments}</p>
+                                </div>
+                              )}
+                              <p className="text-xs text-muted-foreground mt-2">
+                                Calificado el: {new Date(rating.createdAt).toLocaleDateString('es-ES')}
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                try {
+                                  await updateRating(rating.id, { resolved: true });
+                                  await loadData();
+                                } catch (error) {
+                                  console.error('[v0] Error resolving rating:', error);
+                                }
+                              }}
+                            >
+                              Marcar como Resuelto
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </DashboardLayout>
 
