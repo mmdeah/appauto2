@@ -234,11 +234,54 @@ if (!fs.existsSync(photosDir)) {
 }
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+
+// Manejo de errores del servidor
+app.on('error', (err) => {
+  console.error('❌ Error en el servidor:', err);
+});
+
+// Manejo de errores no capturados
+process.on('uncaughtException', (err) => {
+  console.error('❌ Error no capturado:', err);
+  // No cerrar el proceso, solo loguear
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Promesa rechazada no manejada:', reason);
+  // No cerrar el proceso, solo loguear
+});
+
+// Iniciar servidor
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Servidor JSON corriendo en puerto ${PORT}`);
   console.log(`📁 Directorio de datos: ${DATA_DIR}`);
   console.log(`📁 Base de datos: ${dbPath}`);
   console.log(`📸 Fotos guardadas en: ${path.join(DATA_DIR, 'photos')}`);
   console.log(`🌐 API disponible en: http://localhost:${PORT}/api`);
+});
+
+// Manejo de errores del servidor HTTP
+server.on('error', (err) => {
+  console.error('❌ Error del servidor HTTP:', err);
+  if (err.code === 'EADDRINUSE') {
+    console.error(`⚠️ Puerto ${PORT} ya está en uso`);
+  }
+});
+
+// Mantener el proceso vivo
+process.on('SIGTERM', () => {
+  console.log('⚠️ SIGTERM recibido, cerrando servidor...');
+  server.close(() => {
+    console.log('✅ Servidor cerrado correctamente');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('⚠️ SIGINT recibido, cerrando servidor...');
+  server.close(() => {
+    console.log('✅ Servidor cerrado correctamente');
+    process.exit(0);
+  });
 });
 
