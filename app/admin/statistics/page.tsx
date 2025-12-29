@@ -609,10 +609,6 @@ export default function StatisticsPage() {
             </Card>
           </div>
 
-          {/* Gráficos de Líneas */}
-          <Card>
-            <CardHeader>
-
           {/* Resumen Mensual Detallado */}
           <Card>
             <CardHeader>
