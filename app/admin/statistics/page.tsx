@@ -5,74 +5,251 @@ import { ProtectedRoute } from '@/components/protected-route';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Car, Wrench, Trash2 } from 'lucide-react';
-import { getExpenses, getRevenues, getServiceOrders, deleteRevenue } from '@/lib/db';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Trash2, Plus, Calendar } from 'lucide-react';
+import { getExpenses, getRevenues, createExpense, deleteExpense, deleteRevenue } from '@/lib/db';
 import { formatCurrency } from '@/lib/utils-service';
 import { useAuth } from '@/lib/auth-context';
+import { CurrencyInput } from '@/components/currency-input';
 import Link from 'next/link';
-import type { Expense, Revenue, ServiceOrder } from '@/lib/types';
+import type { Expense, Revenue } from '@/lib/types';
 
-// Componente simple de gráfico de barras
-const BarChart = ({ data, labels, title }: { data: number[], labels: string[], title: string }) => {
+const EXPENSE_CATEGORIES = [
+  'Materiales',
+  'Herramientas',
+  'Servicios Externos',
+  'Mantenimiento',
+  'Alquiler',
+  'Servicios Públicos',
+  'Salarios',
+  'Otros',
+];
+
+type PeriodType = '7d' | '30d' | '3m' | '12m' | 'custom';
+
+// Componente de gráfico de líneas
+const LineChart = ({ 
+  data, 
+  labels, 
+  title, 
+  color = 'blue',
+  height = 200 
+}: { 
+  data: number[], 
+  labels: string[], 
+  title: string,
+  color?: string,
+  height?: number
+}) => {
   const maxValue = Math.max(...data, 1);
+  const minValue = Math.min(...data, 0);
+  const range = maxValue - minValue || 1;
   
+  const points = data.map((value, index) => {
+    const x = (index / (data.length - 1 || 1)) * 100;
+    const y = 100 - ((value - minValue) / range) * 100;
+    return `${x},${y}`;
+  }).join(' ');
+
+  const colorClasses: Record<string, string> = {
+    green: 'stroke-green-500 fill-green-500',
+    red: 'stroke-red-500 fill-red-500',
+    blue: 'stroke-blue-500 fill-blue-500',
+  };
+
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-semibold text-muted-foreground">{title}</h3>
-      <div className="space-y-2">
-        {data.map((value, index) => (
-          <div key={index} className="space-y-1">
-            <div className="flex justify-between text-xs">
-              <span>{labels[index]}</span>
-              <span className="font-medium">{formatCurrency(value)}</span>
-            </div>
-            <div className="w-full bg-muted rounded-full h-2">
-              <div
-                className="bg-primary rounded-full h-2 transition-all"
-                style={{ width: `${(value / maxValue) * 100}%` }}
+      <div className="relative" style={{ height: `${height}px` }}>
+        <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none">
+          {/* Grid lines */}
+          {[0, 25, 50, 75, 100].map((y) => (
+            <line
+              key={y}
+              x1="0"
+              y1={y}
+              x2="100"
+              y2={y}
+              stroke="currentColor"
+              strokeWidth="0.5"
+              className="text-muted opacity-20"
+            />
+          ))}
+          {/* Area under curve */}
+          <polygon
+            points={`0,100 ${points} 100,100`}
+            className={`${colorClasses[color]} opacity-20`}
+          />
+          {/* Line */}
+          <polyline
+            points={points}
+            fill="none"
+            strokeWidth="2"
+            className={colorClasses[color]}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {/* Data points */}
+          {data.map((value, index) => {
+            const x = (index / (data.length - 1 || 1)) * 100;
+            const y = 100 - ((value - minValue) / range) * 100;
+            return (
+              <circle
+                key={index}
+                cx={x}
+                cy={y}
+                r="1.5"
+                className={colorClasses[color]}
               />
-            </div>
-          </div>
-        ))}
+            );
+          })}
+        </svg>
+        {/* Labels */}
+        <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-muted-foreground">
+          {labels.map((label, index) => (
+            <span key={index} className="transform -rotate-45 origin-top-left">
+              {label}
+            </span>
+          ))}
+        </div>
+      </div>
+      {/* Values */}
+      <div className="flex justify-between text-xs">
+        <span className="text-muted-foreground">Min: {formatCurrency(minValue)}</span>
+        <span className="text-muted-foreground">Max: {formatCurrency(maxValue)}</span>
       </div>
     </div>
   );
 };
 
-// Componente de gráfico de barras comparativo
-const ComparisonChart = ({ revenues, expenses, labels }: { revenues: number[], expenses: number[], labels: string[] }) => {
-  const maxValue = Math.max(...revenues, ...expenses, 1);
-  
+// Gráfico combinado de múltiples líneas
+const MultiLineChart = ({
+  revenues,
+  expenses,
+  profits,
+  labels,
+  height = 300
+}: {
+  revenues: number[],
+  expenses: number[],
+  profits: number[],
+  labels: string[],
+  height?: number
+}) => {
+  const allValues = [...revenues, ...expenses, ...profits];
+  const maxValue = Math.max(...allValues, 1);
+  const minValue = Math.min(...allValues, 0);
+  const range = maxValue - minValue || 1;
+
+  const revenuePoints = revenues.map((value, index) => {
+    const x = (index / (revenues.length - 1 || 1)) * 100;
+    const y = 100 - ((value - minValue) / range) * 100;
+    return `${x},${y}`;
+  }).join(' ');
+
+  const expensePoints = expenses.map((value, index) => {
+    const x = (index / (expenses.length - 1 || 1)) * 100;
+    const y = 100 - ((value - minValue) / range) * 100;
+    return `${x},${y}`;
+  }).join(' ');
+
+  const profitPoints = profits.map((value, index) => {
+    const x = (index / (profits.length - 1 || 1)) * 100;
+    const y = 100 - ((value - minValue) / range) * 100;
+    return `${x},${y}`;
+  }).join(' ');
+
   return (
-    <div className="space-y-4">
-      <div className="relative h-64 flex items-end justify-between gap-1">
-        {revenues.map((revValue, index) => {
-          const expValue = expenses[index] || 0;
-          const revHeight = (revValue / maxValue) * 100;
-          const expHeight = (expValue / maxValue) * 100;
-          
+    <div className="relative" style={{ height: `${height}px` }}>
+      <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none">
+        {/* Grid lines */}
+        {[0, 25, 50, 75, 100].map((y) => (
+          <line
+            key={y}
+            x1="0"
+            y1={y}
+            x2="100"
+            y2={y}
+            stroke="currentColor"
+            strokeWidth="0.5"
+            className="text-muted opacity-20"
+          />
+        ))}
+        
+        {/* Revenue area */}
+        <polygon
+          points={`0,100 ${revenuePoints} 100,100`}
+          className="fill-green-500 opacity-10"
+        />
+        {/* Revenue line */}
+        <polyline
+          points={revenuePoints}
+          fill="none"
+          strokeWidth="2"
+          className="stroke-green-500"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        
+        {/* Expense area */}
+        <polygon
+          points={`0,100 ${expensePoints} 100,100`}
+          className="fill-red-500 opacity-10"
+        />
+        {/* Expense line */}
+        <polyline
+          points={expensePoints}
+          fill="none"
+          strokeWidth="2"
+          className="stroke-red-500"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        
+        {/* Profit line */}
+        <polyline
+          points={profitPoints}
+          fill="none"
+          strokeWidth="2"
+          strokeDasharray="4 4"
+          className="stroke-blue-500"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        
+        {/* Data points */}
+        {revenues.map((value, index) => {
+          const x = (index / (revenues.length - 1 || 1)) * 100;
+          const y = 100 - ((value - minValue) / range) * 100;
           return (
-            <div key={index} className="flex-1 flex flex-col items-center gap-1">
-              <div className="w-full flex flex-col items-center justify-end h-full gap-0.5">
-                <div
-                  className="w-full bg-green-500 rounded-t transition-all hover:bg-green-600"
-                  style={{ height: `${revHeight}%`, minHeight: revValue > 0 ? '2px' : '0' }}
-                  title={`${labels[index]} - Ingresos: ${formatCurrency(revValue)}`}
-                />
-                <div
-                  className="w-full bg-red-500 rounded-t transition-all hover:bg-red-600"
-                  style={{ height: `${expHeight}%`, minHeight: expValue > 0 ? '2px' : '0' }}
-                  title={`${labels[index]} - Gastos: ${formatCurrency(expValue)}`}
-                />
-              </div>
-              <span className="text-xs text-muted-foreground mt-1 transform -rotate-45 origin-top-left whitespace-nowrap">
-                {labels[index]}
-              </span>
-            </div>
+            <circle key={`rev-${index}`} cx={x} cy={y} r="1.5" className="fill-green-500" />
           );
         })}
+        {expenses.map((value, index) => {
+          const x = (index / (expenses.length - 1 || 1)) * 100;
+          const y = 100 - ((value - minValue) / range) * 100;
+          return (
+            <circle key={`exp-${index}`} cx={x} cy={y} r="1.5" className="fill-red-500" />
+          );
+        })}
+        {profits.map((value, index) => {
+          const x = (index / (profits.length - 1 || 1)) * 100;
+          const y = 100 - ((value - minValue) / range) * 100;
+          return (
+            <circle key={`prof-${index}`} cx={x} cy={y} r="1.5" className="fill-blue-500" />
+          );
+        })}
+      </svg>
+      {/* Labels */}
+      <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-muted-foreground px-2">
+        {labels.map((label, index) => (
+          <span key={index} className="transform -rotate-45 origin-top-left whitespace-nowrap">
+            {label}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -82,30 +259,204 @@ export default function StatisticsPage() {
   const { user } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [revenues, setRevenues] = useState<Revenue[]>([]);
-  const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [periodType, setPeriodType] = useState<PeriodType>('30d');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  
+  // Formulario de gastos
+  const [formData, setFormData] = useState({
+    description: '',
+    amount: 0,
+    category: 'Materiales',
+    date: new Date().toISOString().split('T')[0],
+  });
 
   useEffect(() => {
     loadData();
-  }, [selectedYear]);
+  }, [periodType, customStartDate, customEndDate]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [expensesData, revenuesData, ordersData] = await Promise.all([
+      const [expensesData, revenuesData] = await Promise.all([
         getExpenses(),
         getRevenues(),
-        getServiceOrders(),
       ]);
-      
       setExpenses(expensesData);
       setRevenues(revenuesData);
-      setOrders(ordersData);
     } catch (error) {
-      console.error('[v0] Error loading statistics:', error);
+      console.error('[v0] Error loading data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Calcular fechas según el periodo seleccionado
+  const getDateRange = () => {
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    let start = new Date();
+
+    if (periodType === 'custom') {
+      if (customStartDate && customEndDate) {
+        start = new Date(customStartDate);
+        start.setHours(0, 0, 0, 0);
+        end.setTime(new Date(customEndDate).getTime());
+        end.setHours(23, 59, 59, 999);
+      } else {
+        // Si no hay fechas personalizadas, usar último mes
+        start.setMonth(start.getMonth() - 1);
+      }
+    } else if (periodType === '7d') {
+      start.setDate(start.getDate() - 7);
+    } else if (periodType === '30d') {
+      start.setMonth(start.getMonth() - 1);
+    } else if (periodType === '3m') {
+      start.setMonth(start.getMonth() - 3);
+    } else if (periodType === '12m') {
+      start.setFullYear(start.getFullYear() - 1);
+    }
+
+    return { start, end };
+  };
+
+  // Filtrar datos por periodo
+  const { start, end } = getDateRange();
+  const filteredExpenses = expenses.filter(e => {
+    const date = new Date(e.date || e.created_at);
+    return date >= start && date <= end;
+  });
+
+  const filteredRevenues = revenues.filter(r => {
+    const date = new Date(r.date || r.created_at);
+    return date >= start && date <= end;
+  });
+
+  // Agrupar por día/semana/mes según el periodo
+  const getGroupedData = () => {
+    const groups: Record<string, { expenses: number; revenues: number; date: Date }> = {};
+    
+    filteredExpenses.forEach(expense => {
+      const date = new Date(expense.date || expense.created_at);
+      let key = '';
+      
+      if (periodType === '7d' || periodType === '30d') {
+        key = date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+      } else {
+        key = date.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
+      }
+      
+      if (!groups[key]) {
+        groups[key] = { expenses: 0, revenues: 0, date };
+      }
+      groups[key].expenses += expense.amount;
+    });
+
+    filteredRevenues.forEach(revenue => {
+      const date = new Date(revenue.date || revenue.created_at);
+      let key = '';
+      
+      if (periodType === '7d' || periodType === '30d') {
+        key = date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+      } else {
+        key = date.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
+      }
+      
+      if (!groups[key]) {
+        groups[key] = { expenses: 0, revenues: 0, date };
+      }
+      groups[key].revenues += revenue.amount;
+    });
+
+    // Ordenar por fecha
+    return Object.entries(groups)
+      .sort((a, b) => a[1].date.getTime() - b[1].date.getTime())
+      .map(([key, value]) => ({
+        label: key,
+        expenses: value.expenses,
+        revenues: value.revenues,
+        profit: value.revenues - value.expenses,
+        date: value.date,
+      }));
+  };
+
+  const groupedData = getGroupedData();
+  const revenuesData = groupedData.map(g => g.revenues);
+  const expensesData = groupedData.map(g => g.expenses);
+  const profitsData = groupedData.map(g => g.profit);
+  const labels = groupedData.map(g => g.label);
+
+  // Agrupar por mes para el resumen mensual
+  const getMonthlySummary = () => {
+    const months: Record<string, { expenses: number; revenues: number; count: number }> = {};
+    
+    filteredExpenses.forEach(expense => {
+      const date = new Date(expense.date || expense.created_at);
+      const key = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+      if (!months[key]) {
+        months[key] = { expenses: 0, revenues: 0, count: 0 };
+      }
+      months[key].expenses += expense.amount;
+    });
+
+    filteredRevenues.forEach(revenue => {
+      const date = new Date(revenue.date || revenue.created_at);
+      const key = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+      if (!months[key]) {
+        months[key] = { expenses: 0, revenues: 0, count: 0 };
+      }
+      months[key].revenues += revenue.amount;
+      months[key].count += 1;
+    });
+
+    return Object.entries(months)
+      .sort((a, b) => {
+        const dateA = new Date(a[0]);
+        const dateB = new Date(b[0]);
+        return dateB.getTime() - dateA.getTime();
+      })
+      .map(([month, data]) => ({
+        month,
+        expenses: data.expenses,
+        revenues: data.revenues,
+        profit: data.revenues - data.expenses,
+        count: data.count,
+      }));
+  };
+
+  const monthlySummary = getMonthlySummary();
+
+  // Totales del periodo
+  const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const totalRevenues = filteredRevenues.reduce((sum, r) => sum + r.amount, 0);
+  const totalProfit = totalRevenues - totalExpenses;
+
+  // Handlers
+  const handleSubmitExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    try {
+      await createExpense({
+        description: formData.description,
+        amount: formData.amount,
+        category: formData.category,
+        date: formData.date,
+        createdBy: user.id,
+      });
+
+      setFormData({
+        description: '',
+        amount: 0,
+        category: 'Materiales',
+        date: new Date().toISOString().split('T')[0],
+      });
+
+      await loadData();
+    } catch (error) {
+      console.error('[v0] Error creating expense:', error);
+      alert('Error al crear el gasto. Por favor intenta nuevamente.');
     }
   };
 
@@ -121,84 +472,10 @@ export default function StatisticsPage() {
     }
   };
 
-  // Obtener años disponibles
-  const availableYears = Array.from(
-    new Set([
-      ...expenses.map(e => new Date(e.date || e.created_at).getFullYear()),
-      ...revenues.map(r => new Date(r.date || r.created_at).getFullYear()),
-      ...orders.map(o => new Date(o.createdAt).getFullYear()),
-    ])
-  ).sort((a, b) => b - a);
-
-  // Filtrar datos por año seleccionado
-  const filteredExpenses = expenses.filter(e => {
-    const date = new Date(e.date || e.created_at);
-    return date.getFullYear() === selectedYear;
-  });
-
-  const filteredRevenues = revenues.filter(r => {
-    const date = new Date(r.date || r.created_at);
-    return date.getFullYear() === selectedYear;
-  });
-
-  const filteredOrders = orders.filter(o => {
-    const date = new Date(o.createdAt);
-    return date.getFullYear() === selectedYear;
-  });
-
-  // Agrupar por mes
-  const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  
-  const monthlyData = months.map((month, index) => {
-    const monthExpenses = filteredExpenses.filter(e => {
-      const date = new Date(e.date || e.created_at);
-      return date.getMonth() === index;
-    });
-    
-    const monthRevenues = filteredRevenues.filter(r => {
-      const date = new Date(r.date || r.created_at);
-      return date.getMonth() === index;
-    });
-    
-    const monthOrders = filteredOrders.filter(o => {
-      const date = new Date(o.createdAt);
-      return date.getMonth() === index;
-    });
-
-    const totalExpenses = monthExpenses.reduce((sum, e) => sum + e.amount, 0);
-    const totalRevenues = monthRevenues.reduce((sum, r) => sum + r.amount, 0);
-    const profit = totalRevenues - totalExpenses;
-    const ordersCount = monthOrders.length;
-    const completedOrders = monthOrders.filter(o => o.state === 'delivered' || o.state === 'completed').length;
-
-    return {
-      month,
-      expenses: totalExpenses,
-      revenues: totalRevenues,
-      profit,
-      ordersCount,
-      completedOrders,
-    };
-  });
-
-  // Totales del año
-  const yearTotalExpenses = monthlyData.reduce((sum, m) => sum + m.expenses, 0);
-  const yearTotalRevenues = monthlyData.reduce((sum, m) => sum + m.revenues, 0);
-  const yearTotalProfit = yearTotalRevenues - yearTotalExpenses;
-  const yearTotalOrders = monthlyData.reduce((sum, m) => sum + m.ordersCount, 0);
-  const yearCompletedOrders = monthlyData.reduce((sum, m) => sum + m.completedOrders, 0);
-
-  // Datos para gráficos
-  const expensesData = monthlyData.map(m => m.expenses);
-  const revenuesData = monthlyData.map(m => m.revenues);
-  const profitData = monthlyData.map(m => m.profit);
-  const ordersData = monthlyData.map(m => m.ordersCount);
-  const monthLabels = monthlyData.map(m => m.month.substring(0, 3));
-
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={['admin']}>
-        <DashboardLayout>
+        <DashboardLayout title="Estadísticas y Reportes">
           <div className="text-center py-12 text-muted-foreground">Cargando estadísticas...</div>
         </DashboardLayout>
       </ProtectedRoute>
@@ -207,13 +484,13 @@ export default function StatisticsPage() {
 
   return (
     <ProtectedRoute allowedRoles={['admin']}>
-      <DashboardLayout>
+      <DashboardLayout title="Estadísticas y Reportes">
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl font-bold">Estadísticas Mensuales</h1>
-              <p className="text-muted-foreground">Análisis de ingresos, gastos y órdenes por mes</p>
+              <h1 className="text-3xl font-bold">Estadísticas y Reportes</h1>
+              <p className="text-muted-foreground">Análisis de ingresos, gastos y ganancias</p>
             </div>
             <Button variant="outline" asChild>
               <Link href="/admin">
@@ -223,35 +500,84 @@ export default function StatisticsPage() {
             </Button>
           </div>
 
-          {/* Selector de año */}
+          {/* Selector de Periodo */}
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <Label>Año:</Label>
-                <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(Number(value))}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableYears.map(year => (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <CardHeader>
+              <CardTitle>📅 Seleccionar Periodo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant={periodType === '7d' ? 'default' : 'outline'}
+                  onClick={() => setPeriodType('7d')}
+                  className="w-full sm:w-auto"
+                >
+                  Últimos 7 días
+                </Button>
+                <Button
+                  variant={periodType === '30d' ? 'default' : 'outline'}
+                  onClick={() => setPeriodType('30d')}
+                  className="w-full sm:w-auto"
+                >
+                  Últimos 30 días
+                </Button>
+                <Button
+                  variant={periodType === '3m' ? 'default' : 'outline'}
+                  onClick={() => setPeriodType('3m')}
+                  className="w-full sm:w-auto"
+                >
+                  Últimos 3 meses
+                </Button>
+                <Button
+                  variant={periodType === '12m' ? 'default' : 'outline'}
+                  onClick={() => setPeriodType('12m')}
+                  className="w-full sm:w-auto"
+                >
+                  Últimos 12 meses
+                </Button>
+                <Button
+                  variant={periodType === 'custom' ? 'default' : 'outline'}
+                  onClick={() => setPeriodType('custom')}
+                  className="w-full sm:w-auto"
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Personalizado
+                </Button>
               </div>
+
+              {periodType === 'custom' && (
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="start-date">Fecha Inicio</Label>
+                    <Input
+                      id="start-date"
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="end-date">Fecha Fin</Label>
+                    <Input
+                      id="end-date"
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Resumen del año */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Resumen del Periodo */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Total Ingresos</p>
-                    <p className="text-2xl font-bold text-green-600">{formatCurrency(yearTotalRevenues)}</p>
+                    <p className="text-2xl font-bold text-green-600">{formatCurrency(totalRevenues)}</p>
                   </div>
                   <TrendingUp className="h-8 w-8 text-green-600" />
                 </div>
@@ -262,7 +588,7 @@ export default function StatisticsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Total Gastos</p>
-                    <p className="text-2xl font-bold text-red-600">{formatCurrency(yearTotalExpenses)}</p>
+                    <p className="text-2xl font-bold text-red-600">{formatCurrency(totalExpenses)}</p>
                   </div>
                   <TrendingDown className="h-8 w-8 text-red-600" />
                 </div>
@@ -273,205 +599,206 @@ export default function StatisticsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Ganancia Neta</p>
-                    <p className={`text-2xl font-bold ${yearTotalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatCurrency(yearTotalProfit)}
+                    <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(totalProfit)}
                     </p>
                   </div>
-                  <DollarSign className={`h-8 w-8 ${yearTotalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} />
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Órdenes</p>
-                    <p className="text-2xl font-bold">{yearTotalOrders}</p>
-                  </div>
-                  <Wrench className="h-8 w-8 text-blue-600" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Órdenes Completadas</p>
-                    <p className="text-2xl font-bold">{yearCompletedOrders}</p>
-                  </div>
-                  <Car className="h-8 w-8 text-purple-600" />
+                  <DollarSign className={`h-8 w-8 ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} />
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Gráficos */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Ingresos vs Gastos */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Ingresos vs Gastos</CardTitle>
-                <CardDescription>Comparación mensual de ingresos y gastos</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ComparisonChart
-                  revenues={revenuesData}
-                  expenses={expensesData}
-                  labels={monthLabels}
-                />
-                <div className="mt-4 flex gap-4 justify-center">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-green-500 rounded"></div>
-                    <span className="text-xs">Ingresos</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-red-500 rounded"></div>
-                    <span className="text-xs">Gastos</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Ganancia Neta */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Ganancia Neta Mensual</CardTitle>
-                <CardDescription>Ganancia o pérdida por mes</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <BarChart
-                  data={profitData}
-                  labels={monthLabels}
-                  title=""
-                />
-              </CardContent>
-            </Card>
-
-            {/* Órdenes por mes */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Órdenes por Mes</CardTitle>
-                <CardDescription>Cantidad de órdenes creadas cada mes</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <BarChart
-                  data={ordersData}
-                  labels={monthLabels}
-                  title=""
-                />
-              </CardContent>
-            </Card>
-
-            {/* Tabla detallada */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Resumen Mensual Detallado</CardTitle>
-                <CardDescription>Desglose completo por mes</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-2">Mes</th>
-                        <th className="text-right p-2">Ingresos</th>
-                        <th className="text-right p-2">Gastos</th>
-                        <th className="text-right p-2">Ganancia</th>
-                        <th className="text-right p-2">Órdenes</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {monthlyData.map((data, index) => (
-                        <tr key={index} className="border-b hover:bg-muted/50">
-                          <td className="p-2 font-medium">{data.month}</td>
-                          <td className="text-right p-2 text-green-600">{formatCurrency(data.revenues)}</td>
-                          <td className="text-right p-2 text-red-600">{formatCurrency(data.expenses)}</td>
-                          <td className={`text-right p-2 font-semibold ${data.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {formatCurrency(data.profit)}
-                          </td>
-                          <td className="text-right p-2">{data.ordersCount}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t font-bold">
-                        <td className="p-2">Total {selectedYear}</td>
-                        <td className="text-right p-2 text-green-600">{formatCurrency(yearTotalRevenues)}</td>
-                        <td className="text-right p-2 text-red-600">{formatCurrency(yearTotalExpenses)}</td>
-                        <td className={`text-right p-2 ${yearTotalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {formatCurrency(yearTotalProfit)}
-                        </td>
-                        <td className="text-right p-2">{yearTotalOrders}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Lista de Ingresos */}
+          {/* Gráficos de Líneas */}
           <Card>
             <CardHeader>
-              <CardTitle>Listado de Ingresos</CardTitle>
-              <CardDescription>
-                Todos los ingresos registrados en el sistema ({filteredRevenues.length})
-              </CardDescription>
+              <CardTitle>📈 Gráficos de Tendencias</CardTitle>
+              <CardDescription>Evolución de ingresos, gastos y ganancia neta</CardDescription>
             </CardHeader>
             <CardContent>
-              {filteredRevenues.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No hay ingresos registrados para el año {selectedYear}
+              <MultiLineChart
+                revenues={revenuesData}
+                expenses={expensesData}
+                profits={profitsData}
+                labels={labels}
+                height={300}
+              />
+              <div className="mt-4 flex flex-wrap gap-4 justify-center">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-500 rounded"></div>
+                  <span className="text-xs">Ingresos</span>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {filteredRevenues
-                    .sort((a, b) => {
-                      const dateA = new Date(a.date || a.created_at).getTime();
-                      const dateB = new Date(b.date || b.created_at).getTime();
-                      return dateB - dateA; // Más recientes primero
-                    })
-                    .map((revenue) => (
-                      <div
-                        key={revenue.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex-1 space-y-1">
-                          <div className="flex items-center gap-3">
-                            <h4 className="font-semibold">{revenue.description || `Ingreso de orden ${revenue.serviceOrderId?.slice(0, 8) || 'N/A'}`}</h4>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(revenue.date || revenue.created_at).toLocaleDateString('es-ES', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                            {formatCurrency(revenue.amount)}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteRevenue(revenue.id)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-red-500 rounded"></div>
+                  <span className="text-xs">Gastos</span>
                 </div>
-              )}
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-blue-500 rounded border-2 border-blue-500 border-dashed"></div>
+                  <span className="text-xs">Ganancia Neta</span>
+                </div>
+              </div>
             </CardContent>
           </Card>
+
+          {/* Resumen Mensual Detallado */}
+          <Card>
+            <CardHeader>
+              <CardTitle>📋 Resumen Mensual Detallado</CardTitle>
+              <CardDescription>Desglose de ingresos y gastos por mes</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2 font-semibold">Mes</th>
+                      <th className="text-right p-2 font-semibold">Ingresos</th>
+                      <th className="text-right p-2 font-semibold">Gastos</th>
+                      <th className="text-right p-2 font-semibold">Ganancia</th>
+                      <th className="text-right p-2 font-semibold"># Ingresos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthlySummary.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="text-center p-4 text-muted-foreground">
+                          No hay datos para el periodo seleccionado
+                        </td>
+                      </tr>
+                    ) : (
+                      monthlySummary.map((month, index) => (
+                        <tr key={index} className="border-b hover:bg-muted/50">
+                          <td className="p-2 font-medium">{month.month}</td>
+                          <td className="p-2 text-right text-green-600">{formatCurrency(month.revenues)}</td>
+                          <td className="p-2 text-right text-red-600">{formatCurrency(month.expenses)}</td>
+                          <td className={`p-2 text-right font-semibold ${month.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {formatCurrency(month.profit)}
+                          </td>
+                          <td className="p-2 text-right text-muted-foreground">{month.count}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Listado de Ingresos */}
+            <Card>
+              <CardHeader>
+                <CardTitle>💰 Listado de Ingresos</CardTitle>
+                <CardDescription>Ingresos registrados en el periodo</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {filteredRevenues.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-4">No hay ingresos en este periodo</p>
+                  ) : (
+                    filteredRevenues
+                      .sort((a, b) => new Date(b.date || b.created_at).getTime() - new Date(a.date || a.created_at).getTime())
+                      .map((revenue) => (
+                        <div key={revenue.id} className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50">
+                          <div className="flex-1">
+                            <p className="font-medium">{revenue.description}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(revenue.date || revenue.created_at).toLocaleDateString('es-ES', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold text-green-600">{formatCurrency(revenue.amount)}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteRevenue(revenue.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Registrar Gastos */}
+            <Card>
+              <CardHeader>
+                <CardTitle>💸 Registrar Gastos</CardTitle>
+                <CardDescription>Agrega un nuevo gasto al sistema</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmitExpense} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="expense-description">Descripción *</Label>
+                    <Textarea
+                      id="expense-description"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Ej: Compra de herramientas..."
+                      rows={3}
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="expense-amount">Monto *</Label>
+                      <CurrencyInput
+                        value={formData.amount}
+                        onChange={(value) => setFormData({ ...formData, amount: value })}
+                        placeholder="0"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="expense-category">Categoría *</Label>
+                      <Select
+                        value={formData.category}
+                        onValueChange={(value) => setFormData({ ...formData, category: value })}
+                      >
+                        <SelectTrigger id="expense-category">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {EXPENSE_CATEGORIES.map((cat) => (
+                            <SelectItem key={cat} value={cat}>
+                              {cat}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="expense-date">Fecha *</Label>
+                    <Input
+                      id="expense-date"
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <Button type="submit" className="w-full" disabled={!formData.description || formData.amount === 0}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Registrar Gasto
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </DashboardLayout>
     </ProtectedRoute>
   );
 }
-
