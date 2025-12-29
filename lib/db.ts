@@ -376,3 +376,26 @@ export async function updateRating(id: string, updates: Partial<ServiceRating>):
     body: JSON.stringify(updates)
   })
 }
+
+// Archived Orders functions
+export async function createArchivedOrder(archivedOrder: Omit<ArchivedOrder, "id" | "archivedAt">): Promise<ArchivedOrder> {
+  return apiRequest('/archived-orders', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...archivedOrder,
+      archivedAt: new Date().toISOString(),
+    }),
+  })
+}
+
+export async function getArchivedOrders(): Promise<ArchivedOrder[]> {
+  return apiRequest('/archived-orders')
+}
+
+export async function getArchivedOrderById(id: string): Promise<ArchivedOrder | null> {
+  try {
+    return await apiRequest(`/archived-orders/${id}`)
+  } catch (error) {
+    return null
+  }
+}
