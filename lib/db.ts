@@ -12,6 +12,7 @@ import type {
   Revenue,
   Report,
   ServiceRating,
+  ArchivedOrder,
 } from "./types"
 
 // URL base de la API (Next.js API Routes)

@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
-import { getServiceOrderById, createRevenue, deleteVehicle, deleteServiceOrder } from "@/lib/db"
+import { getServiceOrderById, createRevenue, deleteVehicle, deleteServiceOrder, createArchivedOrder } from "@/lib/db"
 
 export default function AdminPage() {
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([])
@@ -254,16 +254,60 @@ export default function AdminPage() {
 
         if (emailResponse.ok) {
           emailSent = true;
-          // Eliminar orden y vehículo después de enviar el email exitosamente
+          
+          // ARCHIVAR ANTES DE ELIMINAR (sin fotos)
+          try {
+            // Obtener información del técnico si existe
+            const technician = deliveryOrderDetails.technician || null
+            
+            // Crear objeto archivado (SIN FOTOS)
+            const archivedOrder = {
+              originalOrderId: selectedOrderForDelivery.id,
+              orderNumber: deliveryOrderDetails.order.orderNumber,
+              client: {
+                name: deliveryOrderDetails.client.name,
+                idNumber: deliveryOrderDetails.client.idNumber,
+                phone: deliveryOrderDetails.client.phone,
+                email: deliveryOrderDetails.client.email,
+                address: deliveryOrderDetails.client.address,
+              },
+              vehicle: {
+                brand: deliveryOrderDetails.vehicle.brand,
+                model: deliveryOrderDetails.vehicle.model,
+                year: deliveryOrderDetails.vehicle.year,
+                licensePlate: deliveryOrderDetails.vehicle.licensePlate,
+                vin: deliveryOrderDetails.vehicle.vin,
+                color: deliveryOrderDetails.vehicle.color,
+              },
+              services: deliveryOrderDetails.order.services || [],
+              quotation: deliveryOrderDetails.order.quotation,
+              description: deliveryOrderDetails.order.description,
+              diagnosis: deliveryOrderDetails.order.diagnosis,
+              estimatedCost: deliveryOrderDetails.order.estimatedCost,
+              finalCost: deliveryOrderDetails.order.finalCost,
+              technicianName: technician?.name,
+              deliveredAt: new Date().toISOString(),
+              createdAt: deliveryOrderDetails.order.createdAt,
+            }
+            
+            // Archivar la orden
+            await createArchivedOrder(archivedOrder)
+            console.log('✅ Orden archivada exitosamente')
+          } catch (archiveError) {
+            console.error('Error archiving order:', archiveError)
+            // Continuar con la eliminación aunque falle el archivado
+          }
+          
+          // Eliminar orden y vehículo después de archivar
           try {
             await deleteServiceOrder(selectedOrderForDelivery.id);
             if (deliveryOrderDetails.vehicle) {
               await deleteVehicle(deliveryOrderDetails.vehicle.id);
             }
-            alert("✅ Orden marcada como entregada, email enviado al cliente. Orden y vehículo eliminados del sistema para ahorrar espacio.");
+            alert("✅ Orden marcada como entregada, email enviado y archivada. Orden y vehículo eliminados del sistema.");
           } catch (deleteError) {
             console.error('Error deleting order/vehicle:', deleteError);
-            alert("✅ Orden marcada como entregada y email enviado, pero hubo un error al eliminar los datos del sistema.");
+            alert("✅ Orden marcada como entregada, email enviado y archivada, pero hubo un error al eliminar los datos del sistema.");
           }
         } else {
           const errorText = await emailResponse.text();
@@ -419,6 +463,12 @@ export default function AdminPage() {
               <Link href="/admin/reports">
                 <FileText className="h-4 w-4 mr-2" />
                 Reportes
+              </Link>
+            </Button>
+            <Button variant="outline" asChild size="lg" className="shadow-sm">
+              <Link href="/admin/archived">
+                <Calendar className="h-4 w-4 mr-2" />
+                Historial Entregados
               </Link>
             </Button>
           </div>
