@@ -160,3 +160,56 @@ export interface Report {
   createdAt: string
   resolved?: boolean // Estado del reporte: resuelto o no resuelto
 }
+
+export interface ReviewReport {
+  id: string
+  reportId: string // ID del reporte del técnico
+  licensePlate: string // Placa del vehículo
+  category: string // Categoría de la revisión del admin
+  text: string // Texto de la revisión del admin
+  reviewedBy: string // ID del admin que hizo la revisión
+  createdAt: string
+}
+
+export interface ArchivedOrder {
+  id: string
+  archivedAt: string // Fecha de archivado
+  originalOrderId: string // ID de la orden original
+  orderNumber?: string // Número de orden legible
+  
+  // Datos del cliente (completos, sin referencias)
+  client: {
+    name: string
+    idNumber: string
+    phone: string
+    email: string
+    address?: string
+  }
+  
+  // Datos del vehículo (completos, sin referencias)
+  vehicle: {
+    brand: string
+    model: string
+    year: number
+    licensePlate: string
+    vin?: string
+    color?: string
+  }
+  
+  // Servicios realizados
+  services: ServiceItem[]
+  
+  // Cotización final
+  quotation?: Quotation
+  
+  // Información adicional
+  description: string
+  diagnosis?: string
+  estimatedCost?: number
+  finalCost?: number
+  technicianName?: string
+  
+  // Fechas
+  createdAt: string // Fecha original de creación
+  deliveredAt: string // Fecha de entrega
+}
