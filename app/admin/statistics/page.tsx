@@ -503,7 +503,7 @@ export default function StatisticsPage() {
           {/* Selector de Periodo */}
           <Card>
             <CardHeader>
-              <CardTitle>📅 Seleccionar Periodo</CardTitle>
+              <CardTitle>Seleccionar Periodo</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-3">
@@ -612,38 +612,11 @@ export default function StatisticsPage() {
           {/* Gráficos de Líneas */}
           <Card>
             <CardHeader>
-              <CardTitle>📈 Gráficos de Tendencias</CardTitle>
-              <CardDescription>Evolución de ingresos, gastos y ganancia neta</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <MultiLineChart
-                revenues={revenuesData}
-                expenses={expensesData}
-                profits={profitsData}
-                labels={labels}
-                height={300}
-              />
-              <div className="mt-4 flex flex-wrap gap-4 justify-center">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-green-500 rounded"></div>
-                  <span className="text-xs">Ingresos</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-red-500 rounded"></div>
-                  <span className="text-xs">Gastos</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded border-2 border-blue-500 border-dashed"></div>
-                  <span className="text-xs">Ganancia Neta</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Resumen Mensual Detallado */}
           <Card>
             <CardHeader>
-              <CardTitle>📋 Resumen Mensual Detallado</CardTitle>
+              <CardTitle>Resumen Mensual Detallado</CardTitle>
               <CardDescription>Desglose de ingresos y gastos por mes</CardDescription>
             </CardHeader>
             <CardContent>
@@ -688,7 +661,7 @@ export default function StatisticsPage() {
             {/* Listado de Ingresos */}
             <Card>
               <CardHeader>
-                <CardTitle>💰 Listado de Ingresos</CardTitle>
+                <CardTitle>Listado de Ingresos</CardTitle>
                 <CardDescription>Ingresos registrados en el periodo</CardDescription>
               </CardHeader>
               <CardContent>
@@ -731,7 +704,7 @@ export default function StatisticsPage() {
             {/* Registrar Gastos */}
             <Card>
               <CardHeader>
-                <CardTitle>💸 Registrar Gastos</CardTitle>
+                <CardTitle>Registrar Gastos</CardTitle>
                 <CardDescription>Agrega un nuevo gasto al sistema</CardDescription>
               </CardHeader>
               <CardContent>

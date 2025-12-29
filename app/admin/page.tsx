@@ -448,12 +448,6 @@ export default function AdminPage() {
               </Link>
             </Button>
             <Button variant="outline" asChild size="lg" className="shadow-sm">
-              <Link href="/admin/expenses">
-                <TrendingDown className="h-4 w-4 mr-2" />
-                Historial de Gastos
-              </Link>
-            </Button>
-            <Button variant="outline" asChild size="lg" className="shadow-sm">
               <Link href="/admin/statistics">
                 <TrendingUp className="h-4 w-4 mr-2" />
                 Estadísticas
@@ -463,12 +457,6 @@ export default function AdminPage() {
               <Link href="/admin/reports">
                 <FileText className="h-4 w-4 mr-2" />
                 Reportes
-              </Link>
-            </Button>
-            <Button variant="outline" asChild size="lg" className="shadow-sm">
-              <Link href="/admin/archived">
-                <Calendar className="h-4 w-4 mr-2" />
-                Historial Entregados
               </Link>
             </Button>
           </div>
