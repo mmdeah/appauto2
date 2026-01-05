@@ -87,16 +87,6 @@ export function LoginForm() {
               {isLoading ? 'Ingresando...' : 'Iniciar Sesión'}
             </Button>
           </form>
-
-          <div className="mt-6 pt-6 border-t space-y-2">
-            <p className="text-sm text-muted-foreground text-center mb-3">Usuarios de prueba:</p>
-            <div className="space-y-1 text-xs text-muted-foreground">
-              <p><strong>Admin:</strong> admin@taller.com / admin123</p>
-              <p><strong>Cliente:</strong> cliente@ejemplo.com / cliente123</p>
-              <p><strong>Técnico:</strong> tecnico@taller.com / tecnico123</p>
-              <p><strong>Calidad:</strong> calidad@taller.com / calidad123</p>
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>
