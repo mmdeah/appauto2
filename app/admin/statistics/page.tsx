@@ -472,6 +472,18 @@ export default function StatisticsPage() {
     }
   };
 
+  const handleDeleteExpense = async (id: string) => {
+    if (!confirm('¿Estás seguro de eliminar este gasto? Esta acción no se puede deshacer.')) return;
+
+    try {
+      await deleteExpense(id);
+      await loadData();
+    } catch (error) {
+      console.error('[v0] Error deleting expense:', error);
+      alert('Error al eliminar el gasto. Por favor intenta nuevamente.');
+    }
+  };
+
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={['admin']}>
@@ -686,6 +698,7 @@ export default function StatisticsPage() {
                               size="sm"
                               onClick={() => handleDeleteRevenue(revenue.id)}
                               className="text-red-600 hover:text-red-700"
+                              title="Eliminar ingreso"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -697,75 +710,129 @@ export default function StatisticsPage() {
               </CardContent>
             </Card>
 
-            {/* Registrar Gastos */}
+            {/* Listado de Gastos */}
             <Card>
               <CardHeader>
-                <CardTitle>Registrar Gastos</CardTitle>
-                <CardDescription>Agrega un nuevo gasto al sistema</CardDescription>
+                <CardTitle>Listado de Gastos</CardTitle>
+                <CardDescription>Gastos registrados en el periodo</CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmitExpense} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="expense-description">Descripción *</Label>
-                    <Textarea
-                      id="expense-description"
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      placeholder="Ej: Compra de herramientas..."
-                      rows={3}
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="expense-amount">Monto *</Label>
-                      <CurrencyInput
-                        value={formData.amount}
-                        onChange={(value) => setFormData({ ...formData, amount: value })}
-                        placeholder="0"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="expense-category">Categoría *</Label>
-                      <Select
-                        value={formData.category}
-                        onValueChange={(value) => setFormData({ ...formData, category: value })}
-                      >
-                        <SelectTrigger id="expense-category">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {EXPENSE_CATEGORIES.map((cat) => (
-                            <SelectItem key={cat} value={cat}>
-                              {cat}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="expense-date">Fecha *</Label>
-                    <Input
-                      id="expense-date"
-                      type="date"
-                      value={formData.date}
-                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                      required
-                    />
-                  </div>
-
-                  <Button type="submit" className="w-full" disabled={!formData.description || formData.amount === 0}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Registrar Gasto
-                  </Button>
-                </form>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {filteredExpenses.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-4">No hay gastos en este periodo</p>
+                  ) : (
+                    filteredExpenses
+                      .sort((a, b) => new Date(b.date || b.created_at).getTime() - new Date(a.date || a.created_at).getTime())
+                      .map((expense) => (
+                        <div key={expense.id} className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50">
+                          <div className="flex-1">
+                            <p className="font-medium">{expense.description}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(expense.date || expense.created_at).toLocaleDateString('es-ES', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                })}
+                              </p>
+                              {expense.category && (
+                                <>
+                                  <span className="text-muted-foreground">•</span>
+                                  <span className="text-xs px-2 py-0.5 bg-muted rounded-full text-muted-foreground">
+                                    {expense.category}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold text-red-600">{formatCurrency(expense.amount)}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteExpense(expense.id)}
+                              className="text-red-600 hover:text-red-700"
+                              title="Eliminar gasto"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
+
+          {/* Registrar Gastos */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Registrar Gastos</CardTitle>
+              <CardDescription>Agrega un nuevo gasto al sistema</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmitExpense} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="expense-description">Descripción *</Label>
+                  <Textarea
+                    id="expense-description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Ej: Compra de herramientas..."
+                    rows={3}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="expense-amount">Monto *</Label>
+                    <CurrencyInput
+                      value={formData.amount}
+                      onChange={(value) => setFormData({ ...formData, amount: value })}
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="expense-category">Categoría *</Label>
+                    <Select
+                      value={formData.category}
+                      onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    >
+                      <SelectTrigger id="expense-category">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EXPENSE_CATEGORIES.map((cat) => (
+                          <SelectItem key={cat} value={cat}>
+                            {cat}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="expense-date">Fecha *</Label>
+                  <Input
+                    id="expense-date"
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <Button type="submit" className="w-full" disabled={!formData.description || formData.amount === 0}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Registrar Gasto
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       </DashboardLayout>
     </ProtectedRoute>
