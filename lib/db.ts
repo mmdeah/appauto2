@@ -93,6 +93,24 @@ export async function saveClient(client: Client): Promise<Client> {
   })
 }
 
+export async function updateClient(id: string, updates: Partial<Client>): Promise<Client | null> {
+  try {
+    const client = await getClientById(id)
+    if (!client) return null
+    
+    return apiRequest(`/clients/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        ...client,
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      })
+    })
+  } catch {
+    return null
+  }
+}
+
 // Vehicle functions
 export async function getVehicles(): Promise<Vehicle[]> {
   return apiRequest('/vehicles')

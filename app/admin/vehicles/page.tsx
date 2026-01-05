@@ -24,15 +24,16 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Plus, Car, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { getVehicles, saveVehicle, getUsers } from '@/lib/storage';
+import { getVehicles, saveVehicle, getClients } from '@/lib/db';
 import { generateId } from '@/lib/utils-service';
-import type { Vehicle, User } from '@/lib/types';
+import type { Vehicle, Client } from '@/lib/types';
 
 export default function VehiclesPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [clients, setClients] = useState<User[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [error, setError] = useState('');
@@ -51,11 +52,16 @@ export default function VehiclesPage() {
     loadData();
   }, []);
 
-  const loadData = () => {
-    const allVehicles = getVehicles();
-    const allUsers = getUsers();
-    setVehicles(allVehicles);
-    setClients(allUsers.filter(u => u.role === 'client'));
+  const loadData = async () => {
+    try {
+      const allVehicles = await getVehicles();
+      const allClients = await getClients();
+      setVehicles(allVehicles);
+      setClients(allClients);
+    } catch (error) {
+      console.error('[v0] Error loading data:', error);
+      setError('Error al cargar los datos');
+    }
   };
 
   const resetForm = () => {
@@ -84,7 +90,7 @@ export default function VehiclesPage() {
     setIsDialogOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -93,40 +99,40 @@ export default function VehiclesPage() {
       return;
     }
 
-    const vehicle: Vehicle = {
-      id: editingVehicle?.id || generateId(),
-      clientId: formData.clientId,
-      brand: formData.brand.trim(),
-      model: formData.model.trim(),
-      year: formData.year,
-      licensePlate: formData.licensePlate.trim().toUpperCase(),
-      color: formData.color.trim() || undefined,
-    };
+    try {
+      const vehicle: Vehicle = {
+        id: editingVehicle?.id || generateId(),
+        clientId: formData.clientId,
+        brand: formData.brand.trim(),
+        model: formData.model.trim(),
+        year: formData.year,
+        licensePlate: formData.licensePlate.trim().toUpperCase(),
+        color: formData.color.trim() || undefined,
+      };
 
-    saveVehicle(vehicle);
-    loadData();
-    setIsDialogOpen(false);
-    resetForm();
-  };
-
-  const handleDelete = (vehicleId: string) => {
-    if (confirm('¿Está seguro de eliminar este vehículo?')) {
-      const updatedVehicles = vehicles.filter(v => v.id !== vehicleId);
-      localStorage.setItem('workshop_vehicles', JSON.stringify(updatedVehicles));
-      loadData();
+      await saveVehicle(vehicle);
+      await loadData();
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      console.error('[v0] Error saving vehicle:', error);
+      setError('Error al guardar el vehículo');
     }
   };
 
-  const getClientName = (clientId: string) => {
-    return clients.find(c => c.id === clientId)?.name || 'Desconocido';
+  const handleDelete = async (vehicleId: string) => {
+    if (confirm('¿Está seguro de eliminar este vehículo?')) {
+      try {
+        const { deleteVehicle } = await import('@/lib/db');
+        await deleteVehicle(vehicleId);
+        await loadData();
+      } catch (error) {
+        console.error('[v0] Error deleting vehicle:', error);
+        setError('Error al eliminar el vehículo');
+      }
+    }
   };
 
-  const filteredVehicles = vehicles.filter(v =>
-    v.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    v.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    v.licensePlate.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    getClientName(v.clientId).toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
     <ProtectedRoute allowedRoles={['admin']}>
@@ -182,7 +188,7 @@ export default function VehiclesPage() {
                           <SelectContent>
                             {clients.map((client) => (
                               <SelectItem key={client.id} value={client.id}>
-                                {client.name} ({client.email})
+                                {client.name} - {client.idNumber} ({client.email})
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -285,64 +291,114 @@ export default function VehiclesPage() {
             <CardContent>
               <div className="mb-4">
                 <Input
-                  placeholder="Buscar por marca, modelo, patente o cliente..."
+                  placeholder="Buscar por cliente, cédula, marca, modelo o patente..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="max-w-md"
                 />
               </div>
 
-              {filteredVehicles.length === 0 ? (
+              {clients.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Car className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>
-                    {searchTerm
-                      ? 'No se encontraron vehículos'
-                      : 'No hay vehículos registrados'}
-                  </p>
+                  <p>No hay clientes registrados</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {filteredVehicles.map((vehicle) => (
-                    <div
-                      key={vehicle.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                          <Car className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <div className="space-y-6">
+                  {clients
+                    .filter(client => {
+                      // Filtrar clientes que tienen vehículos o que coinciden con la búsqueda
+                      const clientVehicles = vehicles.filter(v => v.clientId === client.id);
+                      if (clientVehicles.length === 0 && searchTerm) {
+                        // Si no tiene vehículos pero coincide con la búsqueda, mostrarlo
+                        const searchLower = searchTerm.toLowerCase();
+                        return (
+                          client.name.toLowerCase().includes(searchLower) ||
+                          client.idNumber.toLowerCase().includes(searchLower) ||
+                          client.email.toLowerCase().includes(searchLower)
+                        );
+                      }
+                      return true;
+                    })
+                    .map((client) => {
+                      const clientVehicles = vehicles.filter(v => v.clientId === client.id);
+                      const filteredClientVehicles = clientVehicles.filter(v =>
+                        searchTerm === '' ||
+                        v.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        v.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        v.licensePlate.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        client.name.toLowerCase().includes(searchTerm.toLowerCase())
+                      );
+
+                      // Si hay búsqueda y no hay vehículos que coincidan, no mostrar el cliente
+                      if (searchTerm && filteredClientVehicles.length === 0 && clientVehicles.length > 0) {
+                        return null;
+                      }
+
+                      return (
+                        <div key={client.id} className="border rounded-lg p-4 space-y-3">
+                          <div className="flex items-center justify-between pb-2 border-b">
+                            <div>
+                              <h3 className="font-semibold text-lg">{client.name}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                Cédula: {client.idNumber} • Email: {client.email} • Tel: {client.phone}
+                              </p>
+                            </div>
+                            <Badge variant="outline" className="ml-2">
+                              {clientVehicles.length} {clientVehicles.length === 1 ? 'vehículo' : 'vehículos'}
+                            </Badge>
+                          </div>
+                          {filteredClientVehicles.length === 0 ? (
+                            <div className="text-center py-4 text-muted-foreground text-sm">
+                              {clientVehicles.length === 0
+                                ? 'Este cliente no tiene vehículos registrados'
+                                : 'No se encontraron vehículos que coincidan con la búsqueda'}
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {filteredClientVehicles.map((vehicle) => (
+                                <div
+                                  key={vehicle.id}
+                                  className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
+                                >
+                                  <div className="flex items-start gap-3 flex-1">
+                                    <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                                      <Car className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                    </div>
+                                    <div className="space-y-1 flex-1">
+                                      <h4 className="font-semibold text-sm">
+                                        {vehicle.brand} {vehicle.model} ({vehicle.year})
+                                      </h4>
+                                      <p className="text-xs text-muted-foreground">
+                                        Patente: {vehicle.licensePlate}
+                                        {vehicle.color && ` • Color: ${vehicle.color}`}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleEdit(vehicle)}
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleDelete(vehicle.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-red-600" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <div className="space-y-1">
-                          <h4 className="font-semibold">
-                            {vehicle.brand} {vehicle.model} ({vehicle.year})
-                          </h4>
-                          <p className="text-sm text-muted-foreground">
-                            Patente: {vehicle.licensePlate}
-                            {vehicle.color && ` • Color: ${vehicle.color}`}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Cliente: {getClientName(vehicle.clientId)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleEdit(vehicle)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDelete(vehicle.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    })
+                    .filter(Boolean)}
                 </div>
               )}
             </CardContent>

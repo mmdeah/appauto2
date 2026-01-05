@@ -36,6 +36,7 @@ import {
   createStateHistory,
   updateQuotation,
   createRevenue,
+  updateClient,
 } from "@/lib/db"
 import { generateInvoiceHTML, printInvoice, generateQualityControlHTML } from "@/lib/invoice-generator"
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, generateId, formatCurrency, getNextState, getPreviousState } from "@/lib/utils-service"
@@ -70,6 +71,13 @@ export default function AdminOrderDetailPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [invoiceNoteDialogOpen, setInvoiceNoteDialogOpen] = useState(false)
   const [invoiceNote, setInvoiceNote] = useState("")
+  const [editClientDialogOpen, setEditClientDialogOpen] = useState(false)
+  const [clientEditForm, setClientEditForm] = useState({
+    name: "",
+    idNumber: "",
+    phone: "",
+    email: "",
+  })
 
   const [editForm, setEditForm] = useState({
     description: "",
@@ -134,6 +142,15 @@ export default function AdminOrderDetailPage() {
         estimatedCost: orderData.estimatedCost || 0,
         finalCost: orderData.finalCost || 0,
       })
+
+      if (foundClient) {
+        setClientEditForm({
+          name: foundClient.name,
+          idNumber: foundClient.idNumber,
+          phone: foundClient.phone,
+          email: foundClient.email,
+        })
+      }
     } catch (error) {
       console.error("[v0] Error loading order data:", error)
     }
@@ -464,6 +481,77 @@ TOTAL: ${formatCurrency(order.quotation.total)}
     } catch (error) {
       console.error("Error al generar la cotización:", error)
       alert("Error al generar la cotización. Por favor, intente nuevamente.")
+    }
+  }
+
+  const handleEditClient = () => {
+    if (client) {
+      setClientEditForm({
+        name: client.name,
+        idNumber: client.idNumber,
+        phone: client.phone,
+        email: client.email,
+      })
+      setEditClientDialogOpen(true)
+    }
+  }
+
+  const saveClientChanges = async () => {
+    if (!client || !order) return
+
+    setIsSaving(true)
+    setMessage("")
+
+    try {
+      // Validar campos requeridos
+      if (!clientEditForm.name || !clientEditForm.idNumber || !clientEditForm.phone || !clientEditForm.email) {
+        setMessage("Por favor complete todos los campos requeridos")
+        setIsSaving(false)
+        return
+      }
+
+      // Verificar si hay otro cliente con la misma cédula o email (excluyendo el actual)
+      const allClients = await getClients()
+      const existingByIdNumber = allClients.find(
+        c => c.idNumber === clientEditForm.idNumber && c.id !== client.id
+      )
+      const existingByEmail = allClients.find(
+        c => c.email.toLowerCase() === clientEditForm.email.toLowerCase() && c.id !== client.id
+      )
+
+      if (existingByIdNumber) {
+        setMessage("Ya existe otro cliente con esta cédula")
+        setIsSaving(false)
+        return
+      }
+
+      if (existingByEmail) {
+        setMessage("Ya existe otro cliente con este correo electrónico")
+        setIsSaving(false)
+        return
+      }
+
+      // Actualizar el cliente
+      const updatedClient = await updateClient(client.id, {
+        name: clientEditForm.name,
+        idNumber: clientEditForm.idNumber,
+        phone: clientEditForm.phone,
+        email: clientEditForm.email,
+      })
+
+      if (updatedClient) {
+        setClient(updatedClient)
+        setMessage("Datos del cliente actualizados correctamente")
+        setEditClientDialogOpen(false)
+        await loadData()
+      } else {
+        setMessage("Error al actualizar los datos del cliente")
+      }
+    } catch (err) {
+      console.error("[v0] Error updating client:", err)
+      setMessage("Error al actualizar los datos del cliente")
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -1187,10 +1275,20 @@ TOTAL: ${formatCurrency(order.quotation.total)}
               {client && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Car className="h-5 w-5" />
-                      Cliente
-                    </CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <Car className="h-5 w-5" />
+                        Cliente
+                      </CardTitle>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleEditClient}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Editar Datos
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
@@ -1343,6 +1441,70 @@ TOTAL: ${formatCurrency(order.quotation.total)}
             </Button>
             <Button onClick={handleGenerateInvoiceWithNote}>
               Generar PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editClientDialogOpen} onOpenChange={setEditClientDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Datos del Cliente</DialogTitle>
+            <DialogDescription>
+              Modifique los datos del cliente. Los cambios se aplicarán a esta orden y al cliente en general.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="client-name">Nombre *</Label>
+              <Input
+                id="client-name"
+                value={clientEditForm.name}
+                onChange={(e) => setClientEditForm({ ...clientEditForm, name: e.target.value })}
+                placeholder="Nombre completo"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="client-idNumber">Cédula *</Label>
+              <Input
+                id="client-idNumber"
+                value={clientEditForm.idNumber}
+                onChange={(e) => setClientEditForm({ ...clientEditForm, idNumber: e.target.value })}
+                placeholder="Número de cédula"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="client-phone">Teléfono *</Label>
+              <Input
+                id="client-phone"
+                value={clientEditForm.phone}
+                onChange={(e) => setClientEditForm({ ...clientEditForm, phone: e.target.value })}
+                placeholder="Número de teléfono"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="client-email">Email *</Label>
+              <Input
+                id="client-email"
+                type="email"
+                value={clientEditForm.email}
+                onChange={(e) => setClientEditForm({ ...clientEditForm, email: e.target.value })}
+                placeholder="correo@ejemplo.com"
+              />
+            </div>
+            {message && (
+              <Alert variant={message.includes("Error") ? "destructive" : "default"}>
+                <AlertDescription>{message}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditClientDialogOpen(false)} disabled={isSaving}>
+              Cancelar
+            </Button>
+            <Button onClick={saveClientChanges} disabled={isSaving || !clientEditForm.name || !clientEditForm.idNumber || !clientEditForm.phone || !clientEditForm.email}>
+              <Save className="h-4 w-4 mr-2" />
+              {isSaving ? "Guardando..." : "Guardar Cambios"}
             </Button>
           </DialogFooter>
         </DialogContent>
