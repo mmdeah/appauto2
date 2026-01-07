@@ -17,21 +17,25 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Plus, Trash2, Download, Mail, Save } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Download, Save } from 'lucide-react';
 import Link from 'next/link';
 import {
   getClients,
   saveClient,
   getVehicles,
   saveVehicle,
+  saveServiceOrder,
+  createRevenue,
 } from '@/lib/db';
-import { generateId, formatCurrency } from '@/lib/utils-service';
+import { generateId, formatCurrency, generateOrderNumber } from '@/lib/utils-service';
 import { CurrencyInput } from '@/components/currency-input';
 import { generateInvoiceHTML, printInvoice } from '@/lib/invoice-generator';
-import type { Client, Vehicle, QuotationItem } from '@/lib/types';
+import type { Client, Vehicle, QuotationItem, ServiceOrder } from '@/lib/types';
+import { useAuth } from '@/lib/auth-context';
 
 export default function InvoicePage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -615,40 +619,7 @@ export default function InvoicePage() {
     return template;
   };
 
-  const handleDownloadPDF = () => {
-    if (!selectedClient || !selectedVehicle || quotationItems.length === 0) {
-      setError('Por favor complete todos los campos requeridos y agregue al menos un servicio');
-      return;
-    }
-
-    const client = clients.find(c => c.id === selectedClient);
-    const vehicle = vehicles.find(v => v.id === selectedVehicle);
-
-    if (!client || !vehicle) {
-      setError('Cliente o vehículo no encontrado');
-      return;
-    }
-
-    try {
-      const html = generateInvoiceHTMLForStandalone(
-        client,
-        vehicle,
-        quotationItems,
-        includesTax,
-        serviceDescription,
-        additionalNotes
-      );
-
-      printInvoice(html, vehicle.licensePlate, 'invoice');
-      setSuccess('Factura generada exitosamente');
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (error) {
-      console.error('[v0] Error generating invoice:', error);
-      setError('Error al generar la factura');
-    }
-  };
-
-  const handleSendEmail = async () => {
+  const handleDownloadPDF = async () => {
     if (!selectedClient || !selectedVehicle || quotationItems.length === 0) {
       setError('Por favor complete todos los campos requeridos y agregue al menos un servicio');
       return;
@@ -667,6 +638,7 @@ export default function InvoicePage() {
     setSuccess('');
 
     try {
+      // Generar el PDF
       const html = generateInvoiceHTMLForStandalone(
         client,
         vehicle,
@@ -676,47 +648,89 @@ export default function InvoicePage() {
         additionalNotes
       );
 
-      const invoiceNumber = `INV-${Date.now().toString().slice(-8)}`;
+      printInvoice(html, vehicle.licensePlate, 'invoice');
 
-      const response = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: client.email,
-          subject: `Cuenta de Cobro ${invoiceNumber} - ${vehicle.licensePlate}`,
-          html: html,
-          order: {
-            orderNumber: invoiceNumber,
-            description: serviceDescription,
-            quotation: {
-              items: quotationItems,
-              subtotal: quotationItems.reduce((sum, item) => sum + item.total, 0),
-              tax: includesTax ? quotationItems.reduce((sum, item) => sum + item.total, 0) * 0.19 : 0,
-              total: includesTax
-                ? quotationItems.reduce((sum, item) => sum + item.total, 0) * 1.19
-                : quotationItems.reduce((sum, item) => sum + item.total, 0),
-              includesTax,
-            },
-          },
-          client,
-          vehicle,
-        }),
-      });
+      // Calcular totales
+      const subtotal = quotationItems.reduce((sum, item) => sum + item.total, 0);
+      const tax = includesTax ? subtotal * 0.19 : 0;
+      const total = subtotal + tax;
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al enviar el correo');
+      // Generar número de orden
+      const orderNumber = generateOrderNumber(vehicle.licensePlate);
+
+      // Crear orden de servicio en estado entregado
+      const serviceOrder: ServiceOrder = {
+        id: generateId(),
+        orderNumber,
+        vehicleId: vehicle.id,
+        clientId: client.id,
+        state: 'delivered',
+        description: serviceDescription || 'Cuenta de cobro por servicios realizados',
+        services: quotationItems.map(item => ({
+          id: item.id,
+          description: item.description,
+          completed: true,
+        })),
+        quotation: {
+          id: generateId(),
+          items: quotationItems,
+          subtotal,
+          tax,
+          total,
+          includesTax,
+          createdAt: new Date().toISOString(),
+          createdBy: user?.id || 'admin',
+        },
+        intakePhotos: [], // Sin fotos para optimizar espacio
+        servicePhotos: [], // Sin fotos para optimizar espacio
+        deliveredAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Guardar orden de servicio
+      await saveServiceOrder(serviceOrder);
+
+      // Registrar ganancia
+      if (total > 0) {
+        await createRevenue({
+          serviceOrderId: serviceOrder.id,
+          amount: total,
+          date: new Date().toISOString(),
+          description: `Cuenta de Cobro ${orderNumber} - ${vehicle.brand} ${vehicle.model} (${vehicle.licensePlate})`,
+        });
       }
 
-      setSuccess('Correo enviado exitosamente al cliente');
+      // Limpiar formulario
+      setSelectedClient('');
+      setSelectedVehicle('');
+      setShowNewClient(false);
+      setShowNewVehicle(false);
+      setNewClient({ name: '', idNumber: '', phone: '', email: '', address: '' });
+      setNewVehicle({
+        brand: '',
+        model: '',
+        year: new Date().getFullYear(),
+        licensePlate: '',
+        color: '',
+        vin: '',
+      });
+      setQuotationItems([]);
+      setNewItem({ description: '', quantity: 1, unitPrice: 0 });
+      setIncludesTax(true);
+      setAdditionalNotes('');
+      setServiceDescription('');
+
+      setSuccess('Factura generada, orden creada y ganancia registrada exitosamente');
       setTimeout(() => setSuccess(''), 5000);
     } catch (error) {
-      console.error('[v0] Error sending email:', error);
-      setError(error instanceof Error ? error.message : 'Error al enviar el correo');
+      console.error('[v0] Error generating invoice:', error);
+      setError('Error al generar la factura. Por favor intente nuevamente.');
     } finally {
       setIsLoading(false);
     }
   };
+
 
   const subtotal = quotationItems.reduce((sum, item) => sum + item.total, 0);
   const tax = includesTax ? subtotal * 0.19 : 0;
@@ -1172,7 +1186,7 @@ export default function InvoicePage() {
           <Card>
             <CardHeader>
               <CardTitle>Acciones</CardTitle>
-              <CardDescription>Genere el PDF o envíe la factura por correo</CardDescription>
+              <CardDescription>Genere el PDF de la factura</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col sm:flex-row gap-3">
@@ -1182,16 +1196,7 @@ export default function InvoicePage() {
                   className="flex-1"
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Descargar PDF
-                </Button>
-                <Button
-                  onClick={handleSendEmail}
-                  disabled={!selectedClient || !selectedVehicle || quotationItems.length === 0 || isLoading}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  <Mail className="h-4 w-4 mr-2" />
-                  {isLoading ? 'Enviando...' : 'Enviar por Correo'}
+                  {isLoading ? 'Procesando...' : 'Generar PDF'}
                 </Button>
               </div>
             </CardContent>
