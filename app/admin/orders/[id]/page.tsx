@@ -831,44 +831,27 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground mb-2">Servicios Programados</h4>
                       <div className="space-y-2">
-                        {order.services.map((service) => {
-                          // Verificar si el servicio está en la cotización
-                          const isInQuotation = order.quotation?.items?.some(
-                            item => item.description.toLowerCase().trim() === service.description.toLowerCase().trim()
-                          ) || false;
-                          
-                          return (
-                            <div 
-                              key={service.id} 
-                              className={`flex items-center gap-2 p-2 border rounded ${
-                                isInQuotation ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800' : ''
-                              }`}
-                            >
-                              <input type="checkbox" checked={service.completed} disabled className="h-4 w-4" />
-                              <span className={`flex-1 ${service.completed ? "line-through text-muted-foreground" : ""}`}>
-                                {service.description}
+                        {order.services.map((service) => (
+                          <div key={service.id} className="flex items-center gap-2 p-2 border rounded">
+                            <input type="checkbox" checked={service.completed} disabled className="h-4 w-4" />
+                            <span className={`flex-1 ${service.completed ? "line-through text-muted-foreground" : ""}`}>
+                              {service.description}
+                            </span>
+                            {service.completed && service.completedAt && (
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(service.completedAt).toLocaleDateString("es-ES")}
                               </span>
-                              {isInQuotation && (
-                                <Badge variant="outline" className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700">
-                                  Cotizado
-                                </Badge>
-                              )}
-                              {service.completed && service.completedAt && (
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(service.completedAt).toLocaleDateString("es-ES")}
-                                </span>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeScheduledService(service.id)}
-                                className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          );
-                        })}
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeScheduledService(service.id)}
+                              className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
@@ -901,42 +884,60 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                           {quotationItems.length > 0 && (
                             <div className="space-y-3">
                               <Label className="text-base font-semibold">Ítems de la Cotización</Label>
-                              {quotationItems.map((item) => (
-                                <div
-                                  key={item.id}
-                                  className="grid grid-cols-12 gap-3 items-center p-3 border rounded-lg bg-muted/30"
-                                >
-                                  <div className="col-span-6">
-                                    <Input
-                                      value={item.description}
-                                      onChange={(e) => updateQuotationItem(item.id, "description", e.target.value)}
-                                      placeholder="Descripción"
-                                      className="h-9"
-                                    />
-                                  </div>
-                                  <div className="col-span-2">
-                                    <Input
-                                      type="number"
-                                      value={item.quantity}
-                                      onChange={(e) =>
-                                        updateQuotationItem(item.id, "quantity", Number.parseFloat(e.target.value) || 0)
-                                      }
-                                      placeholder="Cant."
-                                      className="h-9"
-                                      min="0"
-                                    />
-                                  </div>
-                                  <div className="col-span-3 font-semibold text-sm">{formatCurrency(item.total)}</div>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => removeQuotationItem(item.id)}
-                                    className="col-span-1 h-9 w-9"
+                              {quotationItems.map((item) => {
+                                // Verificar si el ítem de cotización también está en servicios programados
+                                const isInScheduledServices = order.services?.some(
+                                  service => service.description.toLowerCase().trim() === item.description.toLowerCase().trim()
+                                ) || false;
+                                
+                                return (
+                                  <div
+                                    key={item.id}
+                                    className={`grid grid-cols-12 gap-3 items-center p-3 border rounded-lg ${
+                                      isInScheduledServices 
+                                        ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800' 
+                                        : 'bg-muted/30'
+                                    }`}
                                   >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              ))}
+                                    <div className="col-span-6">
+                                      <Input
+                                        value={item.description}
+                                        onChange={(e) => updateQuotationItem(item.id, "description", e.target.value)}
+                                        placeholder="Descripción"
+                                        className="h-9"
+                                      />
+                                    </div>
+                                    <div className="col-span-2">
+                                      <Input
+                                        type="number"
+                                        value={item.quantity}
+                                        onChange={(e) =>
+                                          updateQuotationItem(item.id, "quantity", Number.parseFloat(e.target.value) || 0)
+                                        }
+                                        placeholder="Cant."
+                                        className="h-9"
+                                        min="0"
+                                      />
+                                    </div>
+                                    <div className={`col-span-3 font-semibold text-sm flex items-center gap-2 ${isInScheduledServices ? 'text-green-700 dark:text-green-300' : ''}`}>
+                                      {isInScheduledServices && (
+                                        <Badge variant="outline" className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700">
+                                          Programado
+                                        </Badge>
+                                      )}
+                                      {formatCurrency(item.total)}
+                                    </div>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => removeQuotationItem(item.id)}
+                                      className="col-span-1 h-9 w-9"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
 
@@ -1063,30 +1064,46 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                         )}
                       </div>
                       <div className="space-y-3">
-                        {order.quotation.items.map((item) => (
-                          <div
-                            key={item.id}
-                            className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                          >
-                            <Checkbox
-                              id={`item-${item.id}`}
-                              checked={selectedItemIds.has(item.id)}
-                              onCheckedChange={() => toggleItemSelection(item.id)}
-                              className="mt-1"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <label htmlFor={`item-${item.id}`} className="text-sm font-medium cursor-pointer block">
-                                {item.description}
-                              </label>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {item.quantity} x {formatCurrency(item.unitPrice)}
-                              </p>
+                        {order.quotation.items.map((item) => {
+                          // Verificar si el ítem de cotización también está en servicios programados
+                          const isInScheduledServices = order.services?.some(
+                            service => service.description.toLowerCase().trim() === item.description.toLowerCase().trim()
+                          ) || false;
+                          
+                          return (
+                            <div
+                              key={item.id}
+                              className={`flex items-start gap-3 p-3 border rounded-lg transition-colors ${
+                                isInScheduledServices 
+                                  ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-950/50' 
+                                  : 'hover:bg-muted/50'
+                              }`}
+                            >
+                              <Checkbox
+                                id={`item-${item.id}`}
+                                checked={selectedItemIds.has(item.id)}
+                                onCheckedChange={() => toggleItemSelection(item.id)}
+                                className="mt-1"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <label htmlFor={`item-${item.id}`} className="text-sm font-medium cursor-pointer block">
+                                  {item.description}
+                                </label>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {item.quantity} x {formatCurrency(item.unitPrice)}
+                                </p>
+                              </div>
+                              <div className="text-right flex items-center gap-2">
+                                {isInScheduledServices && (
+                                  <Badge variant="outline" className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700">
+                                    Programado
+                                  </Badge>
+                                )}
+                                <p className="text-sm font-semibold whitespace-nowrap">{formatCurrency(item.total)}</p>
+                              </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-sm font-semibold whitespace-nowrap">{formatCurrency(item.total)}</p>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
 
                       {selectedItemIds.size > 0 && (
