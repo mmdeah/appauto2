@@ -831,27 +831,44 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground mb-2">Servicios Programados</h4>
                       <div className="space-y-2">
-                        {order.services.map((service) => (
-                          <div key={service.id} className="flex items-center gap-2 p-2 border rounded">
-                            <input type="checkbox" checked={service.completed} disabled className="h-4 w-4" />
-                            <span className={service.completed ? "line-through text-muted-foreground" : ""}>
-                              {service.description}
-                            </span>
-                            {service.completed && service.completedAt && (
-                              <span className="text-xs text-muted-foreground ml-auto">
-                                {new Date(service.completedAt).toLocaleDateString("es-ES")}
-                              </span>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeScheduledService(service.id)}
-                              className="ml-auto h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                        {order.services.map((service) => {
+                          // Verificar si el servicio está en la cotización
+                          const isInQuotation = order.quotation?.items?.some(
+                            item => item.description.toLowerCase().trim() === service.description.toLowerCase().trim()
+                          ) || false;
+                          
+                          return (
+                            <div 
+                              key={service.id} 
+                              className={`flex items-center gap-2 p-2 border rounded ${
+                                isInQuotation ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800' : ''
+                              }`}
                             >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
+                              <input type="checkbox" checked={service.completed} disabled className="h-4 w-4" />
+                              <span className={`flex-1 ${service.completed ? "line-through text-muted-foreground" : ""}`}>
+                                {service.description}
+                              </span>
+                              {isInQuotation && (
+                                <Badge variant="outline" className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700">
+                                  Cotizado
+                                </Badge>
+                              )}
+                              {service.completed && service.completedAt && (
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(service.completedAt).toLocaleDateString("es-ES")}
+                                </span>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeScheduledService(service.id)}
+                                className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -1250,25 +1267,37 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                   <CardDescription>Seguimiento de cambios en la orden</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {history.map((item, index) => (
-                      <div key={item.id} className="flex gap-3">
-                        <div className="flex flex-col items-center">
-                          <div className="w-3 h-3 rounded-full bg-blue-600 dark:bg-blue-400" />
-                          {index < history.length - 1 && <div className="w-0.5 h-full bg-border mt-1" />}
-                        </div>
-                        <div className="flex-1 pb-4">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge className={SERVICE_STATE_COLORS[item.newState]}>
-                              {SERVICE_STATE_LABELS[item.newState]}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(item.changedAt).toLocaleString("es-ES")}
-                            </span>
+                  <div className="relative">
+                    {/* Línea vertical del timeline */}
+                    <div className="absolute left-[7px] top-0 bottom-0 w-0.5 bg-border" />
+                    
+                    <div className="space-y-0">
+                      {history.map((item, index) => (
+                        <div key={item.id} className="relative flex gap-4 pb-6 last:pb-0">
+                          {/* Punto del timeline */}
+                          <div className="relative z-10 flex-shrink-0">
+                            <div className="w-4 h-4 rounded-full bg-blue-600 dark:bg-blue-400 border-2 border-background" />
+                          </div>
+                          
+                          {/* Contenido */}
+                          <div className="flex-1 pt-0.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge className={SERVICE_STATE_COLORS[item.newState]}>
+                                {SERVICE_STATE_LABELS[item.newState]}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(item.changedAt).toLocaleString("es-ES")}
+                              </span>
+                            </div>
+                            {item.notes && (
+                              <p className="text-xs text-muted-foreground mt-1 ml-0">
+                                {item.notes}
+                              </p>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

@@ -542,7 +542,15 @@ export default function TechnicianOrderDetailPage() {
                   <CardDescription>Suba fotos del trabajo realizado</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <Input type="file" accept="image/*" multiple onChange={handlePhotoUpload} />
+                  <div className="relative">
+                    <Input 
+                      type="file" 
+                      accept="image/*" 
+                      multiple 
+                      onChange={handlePhotoUpload}
+                      className="h-20 text-lg cursor-pointer border-2 border-dashed border-primary/50 hover:border-primary transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                    />
+                  </div>
 
                   {servicePhotos.length > 0 && (
                     <>
