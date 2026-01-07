@@ -197,9 +197,20 @@ export default function TechnicianOrderDetailPage() {
     setMessage("")
 
     try {
-      const { convertBlobToBase64 } = await import("@/lib/storage")
+      const { compressBlobToBase64 } = await import("@/lib/image-compression")
       const servicePhotosBase64 = await Promise.all(
-        servicePhotos.map((photo) => (photo.startsWith("blob:") ? convertBlobToBase64(photo) : Promise.resolve(photo))),
+        servicePhotos.map(async (photo) => {
+          if (photo.startsWith("blob:")) {
+            return await compressBlobToBase64(photo, {
+              maxWidth: 1920,
+              maxHeight: 1920,
+              quality: 0.8,
+              maxSizeKB: 500,
+            });
+          }
+          // Si ya es base64, retornarlo directamente
+          return photo;
+        }),
       )
 
       const updatedOrder: ServiceOrder = {

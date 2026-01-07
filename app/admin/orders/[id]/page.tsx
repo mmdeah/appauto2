@@ -393,9 +393,12 @@ TOTAL: ${formatCurrency(order.quotation.total)}
         })
       }
 
+      // Actualizar orden - eliminar fotos para optimizar espacio, mantener solo información de texto
       await updateServiceOrder(order.id, {
         state: "delivered",
         deliveredAt: new Date().toISOString(),
+        intakePhotos: [], // Eliminar fotos de ingreso
+        servicePhotos: [], // Eliminar fotos de servicio
       })
 
       setMessage("Orden marcada como entregada y ganancia registrada")
@@ -1376,6 +1379,12 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                       <div>
                         <h4 className="text-sm font-medium text-muted-foreground mb-1">Modelo</h4>
                         <p>{vehicle.model}</p>
+                      </div>
+                    )}
+                    {vehicle && (
+                      <div>
+                        <h4 className="text-sm font-medium text-muted-foreground mb-1">Año</h4>
+                        <p>{vehicle.year}</p>
                       </div>
                     )}
                     {vehicle && (

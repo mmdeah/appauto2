@@ -225,10 +225,12 @@ export default function AdminPage() {
         })
       }
 
-      // Actualizar orden
+      // Actualizar orden - eliminar fotos para optimizar espacio, mantener solo información de texto
       await updateServiceOrder(selectedOrderForDelivery.id, {
         state: "delivered",
         deliveredAt: new Date().toISOString(),
+        intakePhotos: [], // Eliminar fotos de ingreso
+        servicePhotos: [], // Eliminar fotos de servicio
       })
 
       // Obtener historial de estados para el email
@@ -255,7 +257,7 @@ export default function AdminPage() {
         if (emailResponse.ok) {
           emailSent = true;
           
-          // ARCHIVAR ANTES DE ELIMINAR (sin fotos)
+          // ARCHIVAR (sin fotos) - La orden se mantiene en la base de datos pero sin fotos
           try {
             // Obtener información del técnico si existe
             const technician = deliveryOrderDetails.technician || null
@@ -295,20 +297,9 @@ export default function AdminPage() {
             console.log('✅ Orden archivada exitosamente')
           } catch (archiveError) {
             console.error('Error archiving order:', archiveError)
-            // Continuar con la eliminación aunque falle el archivado
           }
           
-          // Eliminar orden y vehículo después de archivar
-          try {
-            await deleteServiceOrder(selectedOrderForDelivery.id);
-            if (deliveryOrderDetails.vehicle) {
-              await deleteVehicle(deliveryOrderDetails.vehicle.id);
-            }
-            alert("✅ Orden marcada como entregada, email enviado y archivada. Orden y vehículo eliminados del sistema.");
-          } catch (deleteError) {
-            console.error('Error deleting order/vehicle:', deleteError);
-            alert("✅ Orden marcada como entregada, email enviado y archivada, pero hubo un error al eliminar los datos del sistema.");
-          }
+          alert("✅ Orden marcada como entregada, email enviado y archivada. Las fotos han sido eliminadas para optimizar espacio.");
         } else {
           const errorText = await emailResponse.text();
           console.error('Error sending email:', errorText);
@@ -436,6 +427,12 @@ export default function AdminPage() {
               </Link>
             </Button>
             <Button variant="outline" asChild size="lg" className="shadow-sm">
+              <Link href="/admin/invoice">
+                <FileText className="h-4 w-4 mr-2" />
+                Crear Cuenta de Cobro
+              </Link>
+            </Button>
+            <Button variant="outline" asChild size="lg" className="shadow-sm">
               <Link href="/admin/vehicles">
                 <Car className="h-4 w-4 mr-2" />
                 Gestionar Vehículos
@@ -545,7 +542,7 @@ export default function AdminPage() {
                                                 </div>
                                               {vehicle && (
                                                 <div className="text-sm text-muted-foreground">
-                                                  <p className="font-medium">{vehicle.brand} {vehicle.model}</p>
+                                                  <p className="font-medium">{vehicle.brand} {vehicle.model} ({vehicle.year})</p>
                                                   <p className="flex items-center gap-1">
                                                     <span>{vehicle.licensePlate}</span>
                                                   </p>

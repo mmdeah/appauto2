@@ -31,20 +31,7 @@ import {
 import { generateId, generateOrderNumber } from '@/lib/utils-service';
 import type { Client, Vehicle, User, ServiceOrder, StateHistory } from '@/lib/types';
 import { useAuth } from '@/lib/auth-context';
-
-// Function to convert blob URL to base64
-const convertBlobToBase64 = async (blobUrl: string): Promise<string> => {
-  const response = await fetch(blobUrl);
-  const blob = await response.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      resolve(reader.result as string);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-};
+import { compressImages, compressBlobToBase64 } from '@/lib/image-compression';
 
 export default function NewOrderPage() {
   const router = useRouter();
@@ -238,10 +225,21 @@ export default function NewOrderPage() {
         updatedAt: new Date().toISOString(),
       };
 
+      // Comprimir fotos si son blob URLs, si ya son base64 comprimido las dejamos como están
       const intakePhotosBase64 = await Promise.all(
-        order.intakePhotos.map(async (photo) => 
-          photo.startsWith('blob:') ? await convertBlobToBase64(photo) : photo
-        )
+        order.intakePhotos.map(async (photo) => {
+          if (photo.startsWith('blob:')) {
+            // Comprimir blob URL antes de convertir
+            return await compressBlobToBase64(photo, {
+              maxWidth: 1920,
+              maxHeight: 1920,
+              quality: 0.8,
+              maxSizeKB: 500,
+            });
+          }
+          // Si ya es base64, retornarlo directamente (ya debería estar comprimido)
+          return photo;
+        })
       );
       order.intakePhotos = intakePhotosBase64;
 
@@ -280,12 +278,27 @@ export default function NewOrderPage() {
     setServices(updated);
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
-    const newPhotos = Array.from(files).map(file => URL.createObjectURL(file));
-    setIntakePhotos([...intakePhotos, ...newPhotos]);
+    try {
+      setIsLoading(true);
+      // Comprimir las imágenes automáticamente antes de agregarlas
+      const compressedPhotos = await compressImages(Array.from(files), {
+        maxWidth: 1920,
+        maxHeight: 1920,
+        quality: 0.8,
+        maxSizeKB: 500, // Máximo 500KB por imagen
+      });
+      
+      setIntakePhotos([...intakePhotos, ...compressedPhotos]);
+    } catch (error) {
+      console.error('[v0] Error compressing photos:', error);
+      setError('Error al procesar las imágenes. Por favor intente nuevamente.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const removePhoto = (index: number) => {

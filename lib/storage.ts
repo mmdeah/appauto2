@@ -265,17 +265,38 @@ async function convertBlobToBase64(blobUrl: string): Promise<string> {
 export { convertBlobToBase64 };
 
 export async function saveServiceOrderWithPhotos(order: ServiceOrder): Promise<void> {
-  // Convert blob URLs to base64 for persistence
+  // Importar función de compresión
+  const { compressBlobToBase64 } = await import('./image-compression');
+  
+  // Convert blob URLs to base64 comprimido para persistencia
   const intakePhotosBase64 = await Promise.all(
-    order.intakePhotos.map(photo => 
-      photo.startsWith('blob:') ? convertBlobToBase64(photo) : Promise.resolve(photo)
-    )
+    order.intakePhotos.map(async (photo) => {
+      if (photo.startsWith('blob:')) {
+        return await compressBlobToBase64(photo, {
+          maxWidth: 1920,
+          maxHeight: 1920,
+          quality: 0.8,
+          maxSizeKB: 500,
+        });
+      }
+      // Si ya es base64, retornarlo directamente
+      return photo;
+    })
   );
   
   const servicePhotosBase64 = await Promise.all(
-    order.servicePhotos.map(photo => 
-      photo.startsWith('blob:') ? convertBlobToBase64(photo) : Promise.resolve(photo)
-    )
+    order.servicePhotos.map(async (photo) => {
+      if (photo.startsWith('blob:')) {
+        return await compressBlobToBase64(photo, {
+          maxWidth: 1920,
+          maxHeight: 1920,
+          quality: 0.8,
+          maxSizeKB: 500,
+        });
+      }
+      // Si ya es base64, retornarlo directamente
+      return photo;
+    })
   );
 
   const orderToSave = {
