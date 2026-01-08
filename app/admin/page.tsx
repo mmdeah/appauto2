@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
 import { getServiceOrderById, createRevenue, deleteVehicle, deleteServiceOrder, createArchivedOrder } from "@/lib/db"
+import { printInvoice } from "@/lib/invoice-generator"
+import { generateOrderSummaryHTML } from "@/lib/order-summary-html"
 
 export default function AdminPage() {
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([])
@@ -233,81 +235,29 @@ export default function AdminPage() {
         servicePhotos: [], // Eliminar fotos de servicio
       })
 
-      // Obtener historial de estados para el email
-      const orderHistory = await getStateHistoryByOrderId(selectedOrderForDelivery.id);
+      // Obtener historial de estados para el resumen
+      const orderHistory = await getStateHistoryByOrderId(selectedOrderForDelivery.id)
 
-      // Enviar email al cliente
-      let emailSent = false;
-      try {
-        const emailResponse = await fetch('/api/send-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: deliveryOrderDetails.client.email,
-            subject: `Orden de Servicio #${deliveryOrderDetails.order.orderNumber || selectedOrderForDelivery.id.slice(0, 8)} - Vehículo Listo`,
-            html: '<p>Su orden de servicio ha sido completada y está lista para ser entregada.</p>',
-            order: deliveryOrderDetails.order,
-            client: deliveryOrderDetails.client,
-            vehicle: deliveryOrderDetails.vehicle,
-            technician: deliveryOrderDetails.technician,
-            history: orderHistory.sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime()),
-          })
-        });
+      // Generar HTML del resumen de la orden (misma plantilla que antes se enviaba por email)
+      if (
+        deliveryOrderDetails.order &&
+        deliveryOrderDetails.client &&
+        deliveryOrderDetails.vehicle
+      ) {
+        const summaryHtml = generateOrderSummaryHTML(
+          deliveryOrderDetails.order,
+          deliveryOrderDetails.client,
+          deliveryOrderDetails.vehicle,
+          deliveryOrderDetails.technician,
+          orderHistory,
+        )
 
-        if (emailResponse.ok) {
-          emailSent = true;
-          
-          // ARCHIVAR (sin fotos) - La orden se mantiene en la base de datos pero sin fotos
-          try {
-            // Obtener información del técnico si existe
-            const technician = deliveryOrderDetails.technician || null
-            
-            // Crear objeto archivado (SIN FOTOS)
-            const archivedOrder = {
-              originalOrderId: selectedOrderForDelivery.id,
-              orderNumber: deliveryOrderDetails.order.orderNumber,
-              client: {
-                name: deliveryOrderDetails.client.name,
-                idNumber: deliveryOrderDetails.client.idNumber,
-                phone: deliveryOrderDetails.client.phone,
-                email: deliveryOrderDetails.client.email,
-                address: deliveryOrderDetails.client.address,
-              },
-              vehicle: {
-                brand: deliveryOrderDetails.vehicle.brand,
-                model: deliveryOrderDetails.vehicle.model,
-                year: deliveryOrderDetails.vehicle.year,
-                licensePlate: deliveryOrderDetails.vehicle.licensePlate,
-                vin: deliveryOrderDetails.vehicle.vin,
-                color: deliveryOrderDetails.vehicle.color,
-              },
-              services: deliveryOrderDetails.order.services || [],
-              quotation: deliveryOrderDetails.order.quotation,
-              description: deliveryOrderDetails.order.description,
-              diagnosis: deliveryOrderDetails.order.diagnosis,
-              estimatedCost: deliveryOrderDetails.order.estimatedCost,
-              finalCost: deliveryOrderDetails.order.finalCost,
-              technicianName: technician?.name,
-              deliveredAt: new Date().toISOString(),
-              createdAt: deliveryOrderDetails.order.createdAt,
-            }
-            
-            // Archivar la orden
-            await createArchivedOrder(archivedOrder)
-            console.log('✅ Orden archivada exitosamente')
-          } catch (archiveError) {
-            console.error('Error archiving order:', archiveError)
-          }
-          
-          alert("✅ Orden marcada como entregada, email enviado y archivada. Las fotos han sido eliminadas para optimizar espacio.");
-        } else {
-          const errorText = await emailResponse.text();
-          console.error('Error sending email:', errorText);
-          alert("⚠️ Orden marcada como entregada, pero hubo un error al enviar el email. La orden se mantendrá en el sistema.");
-        }
-      } catch (emailError) {
-        console.error('Error sending email:', emailError);
-        alert("⚠️ Orden marcada como entregada, pero hubo un error al enviar el email. La orden se mantendrá en el sistema.");
+        const licensePlate =
+          deliveryOrderDetails.vehicle.licensePlate ||
+          `Orden_${deliveryOrderDetails.order.orderNumber || selectedOrderForDelivery.id.slice(0, 8)}`
+
+        // Abrir ventana de impresión / guardar como PDF
+        printInvoice(summaryHtml, licensePlate, "invoice")
       }
 
       setDeliveryDialogOpen(false)

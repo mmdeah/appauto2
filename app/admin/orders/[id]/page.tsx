@@ -41,6 +41,7 @@ import {
 import { generateInvoiceHTML, printInvoice, generateQualityControlHTML } from "@/lib/invoice-generator"
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, generateId, formatCurrency, getNextState, getPreviousState } from "@/lib/utils-service"
 import type { ServiceOrder, Vehicle, User as UserType, Client, StateHistory, QuotationItem, ServiceState } from "@/lib/types"
+import { generateOrderSummaryHTML } from "@/lib/order-summary-html"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/lib/auth-context"
 
@@ -88,6 +89,8 @@ export default function AdminOrderDetailPage() {
     finalCost: 0,
   })
 
+  const [adminObservation, setAdminObservation] = useState("")
+  const [observationDialogOpen, setObservationDialogOpen] = useState(false)
   const [includesTax, setIncludesTax] = useState(true)
 
   useEffect(() => {
@@ -142,6 +145,8 @@ export default function AdminOrderDetailPage() {
         estimatedCost: orderData.estimatedCost || 0,
         finalCost: orderData.finalCost || 0,
       })
+
+      setAdminObservation(orderData.adminObservation || "")
 
       if (foundClient) {
         setClientEditForm({
@@ -304,6 +309,29 @@ export default function AdminOrderDetailPage() {
     }
   }
 
+  const saveAdminObservation = async () => {
+    if (!order || !user) return
+
+    setIsSaving(true)
+    setMessage("")
+
+    try {
+      await updateServiceOrder(order.id, {
+        adminObservation: adminObservation.trim() || undefined,
+        updatedAt: new Date().toISOString(),
+      })
+
+      setMessage("Observación guardada correctamente")
+      setObservationDialogOpen(false)
+      await loadData()
+    } catch (err) {
+      console.error("[v0] Error saving observation:", err)
+      setMessage("Error al guardar la observación")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const downloadInvoice = () => {
     if (!order || !order.quotation) return
 
@@ -401,7 +429,24 @@ TOTAL: ${formatCurrency(order.quotation.total)}
         servicePhotos: [], // Eliminar fotos de servicio
       })
 
-      setMessage("Orden marcada como entregada y ganancia registrada")
+      // Generar HTML del resumen de la orden (misma plantilla que antes se enviaba por email)
+      if (client && vehicle) {
+        const summaryHtml = generateOrderSummaryHTML(
+          order,
+          client,
+          vehicle,
+          technician,
+          history,
+        )
+
+        const licensePlate =
+          vehicle.licensePlate || `Orden_${order.orderNumber || order.id.slice(0, 8)}`
+
+        // Abrir ventana de impresión / guardar como PDF
+        printInvoice(summaryHtml, licensePlate, "invoice")
+      }
+
+      setMessage("Orden marcada como entregada, ganancia registrada y resumen generado")
       setDeliveryDialogOpen(false)
       await loadData()
     } catch (err) {
@@ -826,6 +871,29 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                       <p>{order.diagnosis}</p>
                     </div>
                   )}
+
+                  <Separator />
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-medium text-muted-foreground">Observación para el Cliente</h4>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setObservationDialogOpen(true)}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        {order.adminObservation ? "Editar" : "Agregar"} Observación
+                      </Button>
+                    </div>
+                    {order.adminObservation ? (
+                      <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                        <p className="text-sm whitespace-pre-wrap">{order.adminObservation}</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">No hay observaciones registradas</p>
+                    )}
+                  </div>
 
                   {order.services && order.services.length > 0 && (
                     <div>
@@ -1560,6 +1628,44 @@ TOTAL: ${formatCurrency(order.quotation.total)}
             <Button onClick={saveClientChanges} disabled={isSaving || !clientEditForm.name || !clientEditForm.idNumber || !clientEditForm.phone || !clientEditForm.email}>
               <Save className="h-4 w-4 mr-2" />
               {isSaving ? "Guardando..." : "Guardar Cambios"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de Observación del Admin */}
+      <Dialog open={observationDialogOpen} onOpenChange={setObservationDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Observación para el Cliente</DialogTitle>
+            <DialogDescription>
+              Esta observación será visible para el cliente en su vista de la orden
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="admin-observation">Observación</Label>
+              <Textarea
+                id="admin-observation"
+                value={adminObservation}
+                onChange={(e) => setAdminObservation(e.target.value)}
+                placeholder="Escriba una observación para el cliente..."
+                rows={6}
+              />
+            </div>
+            {message && (
+              <Alert variant={message.includes("Error") ? "destructive" : "default"}>
+                <AlertDescription>{message}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setObservationDialogOpen(false)} disabled={isSaving}>
+              Cancelar
+            </Button>
+            <Button onClick={saveAdminObservation} disabled={isSaving}>
+              <Save className="h-4 w-4 mr-2" />
+              {isSaving ? "Guardando..." : "Guardar Observación"}
             </Button>
           </DialogFooter>
         </DialogContent>
