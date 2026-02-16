@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{DOCUMENT_TITLE}} - {{ORDER_NUMBER}}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #1a1a1a;
+      background: #fff;
+      padding: 20px;
+    }
+
+    .invoice-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+    }
+
+    /* Header */
+    .header {
+      text-align: left;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    .document-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: #1a1a1a;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Info Sections */
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 25px;
+    }
+
+    .info-box {
+      padding: 0;
+    }
+
+    .info-box h3 {
+      font-size: 10px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #e5e5e5;
+      padding-bottom: 6px;
+    }
+
+    .info-box p {
+      margin: 5px 0;
+      font-size: 11px;
+      color: #4a4a4a;
+    }
+
+    .info-box strong {
+      color: #1a1a1a;
+      font-weight: 500;
+    }
+
+    /* Service Description */
+    .service-description {
+      padding: 0;
+      margin-bottom: 25px;
+    }
+
+    .service-description h3 {
+      font-size: 10px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #e5e5e5;
+      padding-bottom: 6px;
+    }
+
+    .service-description p {
+      font-size: 11px;
+      color: #4a4a4a;
+      line-height: 1.5;
+    }
+
+    /* Table */
+    .table-container {
+      margin: 25px 0;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+    }
+
+    thead {
+      border-bottom: 2px solid #1a1a1a;
+    }
+
+    th {
+      padding: 10px 8px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #1a1a1a;
+    }
+
+    th.text-center {
+      text-align: center;
+    }
+
+    th.text-right {
+      text-align: right;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    tbody tr:nth-child(even) {
+      background: transparent;
+    }
+
+    td {
+      padding: 10px 8px;
+      font-size: 11px;
+      color: #4a4a4a;
+    }
+
+    td.text-center {
+      text-align: center;
+    }
+
+    td.text-right {
+      text-align: right;
+      font-weight: 500;
+    }
+
+    /* Totals */
+    .totals {
+      margin-top: 25px;
+      text-align: right;
+    }
+
+    .total-row {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .total-label {
+      min-width: 90px;
+      text-align: right;
+      margin-right: 15px;
+      color: #666;
+    }
+
+    .total-value {
+      min-width: 120px;
+      text-align: right;
+      font-weight: 500;
+      color: #1a1a1a;
+    }
+
+    .total-row.grand-total {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 2px solid #1a1a1a;
+      font-size: 14px;
+    }
+
+    .total-row.grand-total .total-label,
+    .total-row.grand-total .total-value {
+      font-weight: 600;
+      color: #1a1a1a;
+      font-size: 14px;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 35px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e5e5;
+      text-align: center;
+      color: #999;
+      font-size: 9px;
+      line-height: 1.6;
+    }
+
+    /* Print Styles */
+    @media print {
+      body {
+        padding: 0;
+        background: white;
+      }
+
+      .invoice-container {
+        padding: 20px;
+        max-width: 100%;
+      }
+
+      .info-grid {
+        page-break-inside: avoid;
+      }
+
+      table {
+        page-break-inside: avoid;
+      }
+
+      .totals {
+        page-break-inside: avoid;
+      }
+
+      @page {
+        margin: 1cm;
+        size: A4;
+      }
+    }
+
+    /* No print for screen */
+    @media screen {
+      .print-button {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="invoice-container">
+    <!-- Header -->
+    <div class="header">
+      <div class="document-title">{{DOCUMENT_TITLE}}</div>
+    </div>
+
+    <!-- Order Info -->
+    <div class="info-box" style="margin-bottom: 15px;">
+      <h3>Información de la Orden</h3>
+      <p><strong>Número de Orden:</strong> {{ORDER_NUMBER}}</p>
+      <p><strong>Fecha de Emisión:</strong> {{ISSUE_DATE}}</p>
+      <p><strong>Estado:</strong> {{ORDER_STATE}}</p>
+    </div>
+
+    <!-- Client and Vehicle Info -->
+    <div class="info-grid">
+      <div class="info-box">
+        <h3>Datos del Cliente</h3>
+        <p><strong>{{CLIENT_NAME}}</strong></p>
+        <p>Cédula: {{CLIENT_ID_NUMBER}}</p>
+        <p>Teléfono: {{CLIENT_PHONE}}</p>
+        <p>Email: {{CLIENT_EMAIL}}</p>
+        {{#CLIENT_ADDRESS}}
+        <p>Dirección: {{CLIENT_ADDRESS}}</p>
+        {{/CLIENT_ADDRESS}}
+      </div>
+      <div class="info-box">
+        <h3>Datos del Vehículo</h3>
+        <p><strong>{{VEHICLE_BRAND}} {{VEHICLE_MODEL}}</strong></p>
+        <p>Placa: {{VEHICLE_LICENSE_PLATE}}</p>
+        {{#VEHICLE_COLOR}}
+        <p>Color: {{VEHICLE_COLOR}}</p>
+        {{/VEHICLE_COLOR}}
+        <p>Año: {{VEHICLE_YEAR}}</p>
+        {{#VEHICLE_VIN}}
+        <p>VIN: {{VEHICLE_VIN}}</p>
+        {{/VEHICLE_VIN}}
+      </div>
+    </div>
+
+    <!-- Service Description -->
+    {{#SERVICE_DESCRIPTION}}
+    <div class="service-description">
+      <h3>Descripción del Servicio</h3>
+      <p>{{SERVICE_DESCRIPTION}}</p>
+    </div>
+    {{/SERVICE_DESCRIPTION}}
+
+    <!-- Items Table -->
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 5%;">#</th>
+            <th style="width: 50%;">Descripción</th>
+            <th class="text-center" style="width: 10%;">Cantidad</th>
+            <th class="text-right" style="width: 17.5%;">Precio Unitario</th>
+            <th class="text-right" style="width: 17.5%;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ITEMS_TABLE_ROWS}}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Totals -->
+    <div class="totals">
+      <div class="total-row">
+        <span class="total-label">Subtotal:</span>
+        <span class="total-value">{{SUBTOTAL}}</span>
+      </div>
+      {{#INCLUDE_TAX}}
+      <div class="total-row">
+        <span class="total-label">IVA (19%):</span>
+        <span class="total-value">{{TAX}}</span>
+      </div>
+      {{/INCLUDE_TAX}}
+      <div class="total-row grand-total">
+        <span class="total-label">TOTAL:</span>
+        <span class="total-value">{{TOTAL}}</span>
+      </div>
+    </div>
+
+    {{#NOTE}}
+    <div class="service-description" style="margin-top: 30px;">
+      <h3>Notas y Observaciones</h3>
+      <p>{{NOTE}}</p>
+    </div>
+    {{/NOTE}}
+
+    <!-- Footer -->
+    <div class="footer">
+      <p><strong>Gracias por confiar en nuestros servicios</strong></p>
+      <p>Este documento es una cuenta de cobro y no constituye factura electrónica</p>
+      <p>Documento generado el {{GENERATION_DATE}}</p>
+    </div>
+  </div>
+</body>
+</html>
+
+
+
+
