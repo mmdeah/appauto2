@@ -70,7 +70,7 @@ export function generateInvoiceHTML(
     })
   }
 
-  // Generar filas de la tabla (Descripción, Tipo, Cantidad, Precio Unit., IVA, Total)
+  // Generar filas de la tabla (Descripción, Cantidad, Precio Unit., IVA, Total)
   const itemsRows = order.quotation.items
     .map(
       (item: QuotationItem, index: number) => {
@@ -85,7 +85,6 @@ export function generateInvoiceHTML(
     <tr>
       <td>${index + 1}</td>
       <td>${escapeHtml(item.description)}</td>
-      <td class="text-center">${escapeHtml(item.type || "servicio")}</td>
       <td class="text-center">${item.quantity}</td>
       <td class="text-right">${formatCurrency(item.unitPrice)}</td>
       ${ivaCell}
@@ -541,12 +540,11 @@ function getInvoiceTemplate(): string {
         <thead>
           <tr>
             <th style="width: 4%;">#</th>
-            <th style="width: 35%;">Descripción</th>
-            <th class="text-center" style="width: 10%;">Tipo</th>
-            <th class="text-center" style="width: 8%;">Cantidad</th>
+            <th style="width: 45%;">Descripción</th>
+            <th class="text-center" style="width: 10%;">Cantidad</th>
             <th class="text-right" style="width: 13%;">Precio Unit.</th>
             <th class="text-right" style="width: 13%;">IVA</th>
-            <th class="text-right" style="width: 17%;">Total</th>
+            <th class="text-right" style="width: 15%;">Total</th>
           </tr>
         </thead>
         <tbody>

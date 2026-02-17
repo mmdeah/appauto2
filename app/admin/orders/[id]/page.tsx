@@ -137,7 +137,6 @@ export default function AdminOrderDetailPage() {
         const items = (orderData.quotation.items || []).map((it) => ({
           ...it,
           includesTax: it.includesTax !== undefined ? it.includesTax : globalIncludesTax,
-          type: it.type || "servicio",
         }))
         setQuotationItems(items)
         setIncludesTax(globalIncludesTax)
@@ -175,7 +174,6 @@ export default function AdminOrderDetailPage() {
     const item: QuotationItem = {
       id: generateId(),
       description: newItem.description.trim(),
-      type: "servicio",
       quantity: newItem.quantity,
       unitPrice: newItem.unitPrice,
       total: newItem.quantity * newItem.unitPrice,

@@ -111,7 +111,6 @@ export interface Quotation {
 export interface QuotationItem {
   id: string
   description: string
-  type?: string // "servicio", "repuesto", etc.
   quantity: number
   unitPrice: number
   total: number // base amount (cantidad * precio unitario)

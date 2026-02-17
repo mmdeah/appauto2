@@ -105,7 +105,6 @@ export default function InvoicePage() {
     const item: QuotationItem = {
       id: generateId(),
       description: newItem.description.trim(),
-      type: "servicio",
       quantity: newItem.quantity,
       unitPrice: newItem.unitPrice,
       total: newItem.quantity * newItem.unitPrice,
