@@ -377,6 +377,12 @@ export default function AdminPage() {
               </Link>
             </Button>
             <Button variant="outline" asChild size="lg" className="shadow-sm">
+              <Link href="/admin/quick-quotation">
+                <FileText className="h-4 w-4 mr-2" />
+                Cotización Rápida
+              </Link>
+            </Button>
+            <Button variant="outline" asChild size="lg" className="shadow-sm">
               <Link href="/admin/invoice">
                 <FileText className="h-4 w-4 mr-2" />
                 Crear Cuenta de Cobro
