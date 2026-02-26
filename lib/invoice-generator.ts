@@ -81,11 +81,16 @@ export function generateInvoiceHTML(
         const ivaCell = hasIva
           ? `<td class="text-right iva-cell">${formatCurrency(ivaAmount)}</td>`
           : `<td class="text-right">-</td>`
+        // Formatear cantidad para mostrar decimales cuando sea necesario
+        const formattedQuantity = item.quantity % 1 === 0 
+          ? item.quantity.toString() 
+          : item.quantity.toFixed(2).replace(/\.?0+$/, '')
+        
         return `
     <tr>
       <td>${index + 1}</td>
       <td>${escapeHtml(item.description)}</td>
-      <td class="text-center">${item.quantity}</td>
+      <td class="text-center">${formattedQuantity}</td>
       <td class="text-right">${formatCurrency(item.unitPrice)}</td>
       ${ivaCell}
       <td class="text-right">${formatCurrency(rowTotal)}</td>

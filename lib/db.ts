@@ -341,15 +341,25 @@ export async function updateReport(id: string, updates: Partial<Report>): Promis
 export async function getDashboardStats(): Promise<DashboardStats> {
   const orders = await getServiceOrders()
   const expenses = await getExpenses()
-  const revenues = await getRevenues()
 
-  const completedOrders = orders.filter((o) => o.state === "completed" || o.state === "delivered")
-  const uniqueVehicles = new Set(completedOrders.map((o) => o.vehicleId))
-  const vehiclesServed = uniqueVehicles.size
-  const totalSales = revenues.reduce((sum, revenue) => sum + revenue.amount, 0)
-  const averageTicket = completedOrders.length > 0 ? totalSales / completedOrders.length : 0
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0)
+  // Solo consideramos órdenes entregadas para las métricas de ventas
+  const deliveredOrders = orders.filter((o) => o.state === "delivered")
+
+  // Cada orden entregada se cuenta como un vehículo atendido (coincide con el contador de "Entregadas")
+  const vehiclesServed = deliveredOrders.length
+
+  // Total de ventas tomado directamente de las cotizaciones/facturas de las órdenes
+  const totalSales = deliveredOrders.reduce((sum, order) => {
+    const orderTotal = order.quotation?.total ?? 0
+    return sum + orderTotal
+  }, 0)
+
+  const averageTicket = deliveredOrders.length > 0 ? totalSales / deliveredOrders.length : 0
+
+  const totalExpenses = (await getExpenses()).reduce((sum, expense) => sum + expense.amount, 0)
   const profit = totalSales - totalExpenses
+
+  // Órdenes activas: todas las que aún no están entregadas
   const activeOrders = orders.filter((o) => o.state !== "delivered").length
 
   return {

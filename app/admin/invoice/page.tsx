@@ -1047,6 +1047,7 @@ export default function InvoicePage() {
                           placeholder="Cant."
                           className="h-9"
                           min="0"
+                          step="0.1"
                         />
                       </div>
                       <div className="col-span-2">
@@ -1101,6 +1102,7 @@ export default function InvoicePage() {
                         onChange={e => setNewItem({ ...newItem, quantity: parseFloat(e.target.value) || 1 })}
                         placeholder="Cantidad"
                         min="0"
+                        step="0.1"
                       />
                     </div>
                     <div>

@@ -1012,6 +1012,7 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                                         placeholder="Cant."
                                         className="h-9"
                                         min="0"
+                                        step="0.1"
                                       />
                                     </div>
                                     <div className="col-span-2 flex items-center gap-2">
@@ -1077,6 +1078,7 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                                     }
                                     placeholder="Cantidad"
                                     min="0"
+                                    step="0.1"
                                   />
                                 </div>
                                 <div>

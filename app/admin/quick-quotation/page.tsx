@@ -300,9 +300,10 @@ export default function QuickQuotationPage() {
                       type="number"
                       className="col-span-2"
                       value={item.quantity}
-                      onChange={(e) => updateItem(item.id, "quantity", Number(e.target.value) || 0)}
+                      onChange={(e) => updateItem(item.id, "quantity", Number.parseFloat(e.target.value) || 0)}
                       placeholder="Cant."
                       min={0}
+                      step="0.1"
                     />
                     <div className="col-span-2 flex items-center gap-2">
                       <Checkbox
@@ -334,9 +335,10 @@ export default function QuickQuotationPage() {
                     type="number"
                     className="col-span-2"
                     value={newItem.quantity || ""}
-                    onChange={(e) => setNewItem((i) => ({ ...i, quantity: Number(e.target.value) || 1 }))}
+                    onChange={(e) => setNewItem((i) => ({ ...i, quantity: Number.parseFloat(e.target.value) || 1 }))}
                     placeholder="Cant."
                     min={0}
+                    step="0.1"
                   />
                   <div className="col-span-3">
                     <CurrencyInput
