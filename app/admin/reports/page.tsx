@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
@@ -113,8 +114,9 @@ export default function ReportsPage() {
   }
 
   const handleGeneratePDF = () => {
-    if (!selectedLicensePlate) {
-      alert("Por favor seleccione una placa de vehículo")
+    const plate = selectedLicensePlate.trim().toUpperCase()
+    if (!plate) {
+      alert("Por favor ingrese una placa de vehículo")
       return
     }
 
@@ -124,19 +126,26 @@ export default function ReportsPage() {
     }
 
     try {
-      const vehicle = vehicles.find(v => v.licensePlate === selectedLicensePlate)
-      if (!vehicle) {
-        alert("No se encontró el vehículo con esa placa")
-        return
-      }
+      const vehicle =
+        vehicles.find((v) => v.licensePlate?.toUpperCase() === plate) ??
+        ({
+          id: `temp_${plate}`,
+          clientId: "temp",
+          brand: "N/A",
+          model: "N/A",
+          year: new Date().getFullYear(),
+          licensePlate: plate,
+          color: undefined,
+          vin: undefined,
+        } as any)
 
       // Buscar orden y cliente asociados
-      const order = orders.find(o => o.vehicleId === vehicle.id)
-      const client = order ? clients.find(c => c.id === order.clientId) : undefined
+      const order = orders.find((o) => o.vehicleId === vehicle.id)
+      const client = order ? clients.find((c) => c.id === order.clientId) : undefined
 
       // Convertir los reportes al formato esperado
-      const reports = vehicleReports.map(r => ({
-        licensePlate: selectedLicensePlate,
+      const reports = vehicleReports.map((r) => ({
+        licensePlate: plate,
         category: r.category,
         text: r.text,
         notes: reportNotes || undefined,
@@ -144,7 +153,7 @@ export default function ReportsPage() {
       }))
 
       const reportHTML = generateVehicleReportHTML(reports, vehicle, client, reportNotes || undefined)
-      printInvoice(reportHTML, `Reporte_${selectedLicensePlate}`, "invoice")
+      printInvoice(reportHTML, `Reporte_${plate}`, "invoice")
     } catch (error) {
       console.error("Error al generar el PDF:", error)
       alert("Error al generar el PDF. Por favor, intente nuevamente.")
@@ -243,24 +252,24 @@ export default function ReportsPage() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="license-plate">Placa del Vehículo *</Label>
-                    <Select 
-                      value={selectedLicensePlate} 
-                      onValueChange={(value) => {
-                        setSelectedLicensePlate(value)
-                        setVehicleReports([]) // Limpiar reportes al cambiar de vehículo
+                    <Input
+                      id="license-plate"
+                      value={selectedLicensePlate}
+                      onChange={(e) => setSelectedLicensePlate(e.target.value)}
+                      onBlur={() => {
+                        // Normalizar y limpiar reportes si cambia la placa
+                        const normalized = selectedLicensePlate.trim().toUpperCase()
+                        if (normalized !== selectedLicensePlate) setSelectedLicensePlate(normalized)
+                        setVehicleReports([])
                       }}
-                    >
-                      <SelectTrigger id="license-plate">
-                        <SelectValue placeholder="Seleccione una placa" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {licensePlates.map((plate) => (
-                          <SelectItem key={plate} value={plate}>
-                            {plate}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Ej: ABC123"
+                      list="known-plates"
+                    />
+                    <datalist id="known-plates">
+                      {licensePlates.map((plate) => (
+                        <option key={plate} value={plate} />
+                      ))}
+                    </datalist>
                   </div>
 
                   {/* Lista de reportes agregados */}
