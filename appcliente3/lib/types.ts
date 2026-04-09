@@ -71,6 +71,7 @@ export interface ServiceOrder {
   technicianId?: string
   state: ServiceState
   description: string
+  technicianLaborNotes?: string // Nota interna del técnico (solo admin, no PDF)
   services: ServiceItem[]
   quotation?: Quotation
   diagnosis?: string

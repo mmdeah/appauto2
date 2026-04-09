@@ -40,6 +40,9 @@ export default function TechnicianOrderDetailPage() {
   const [reportDialogOpen, setReportDialogOpen] = useState(false)
   const [reportCategory, setReportCategory] = useState("")
   const [reportText, setReportText] = useState("")
+  const [reportLicensePlate, setReportLicensePlate] = useState("")
+
+  const [laborNotes, setLaborNotes] = useState("")
 
   const REPORT_CATEGORIES = [
     "General",
@@ -85,6 +88,9 @@ export default function TechnicianOrderDetailPage() {
 
       const foundClient = allClients.find((c) => c.id === foundOrder.clientId)
       setClient(foundClient || null)
+
+      setLaborNotes(foundOrder.technicianLaborNotes || "")
+      setReportLicensePlate(foundVehicle?.licensePlate || "")
 
       setHistory(orderHistory.sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime()))
     } catch (error) {
@@ -150,8 +156,9 @@ export default function TechnicianOrderDetailPage() {
   }
 
   const handleCreateReport = async () => {
-    if (!vehicle || !reportCategory || !reportText.trim()) {
-      alert("Por favor complete la categoría y el reporte")
+    const plate = (vehicle?.licensePlate || reportLicensePlate || "").trim().toUpperCase()
+    if (!plate || !reportCategory || !reportText.trim()) {
+      alert("Por favor complete placa, categoría y el reporte")
       return
     }
 
@@ -160,7 +167,7 @@ export default function TechnicianOrderDetailPage() {
 
     try {
       await createReport({
-        licensePlate: vehicle.licensePlate,
+        licensePlate: plate,
         category: reportCategory,
         text: reportText,
       })
@@ -173,6 +180,28 @@ export default function TechnicianOrderDetailPage() {
     } catch (error) {
       console.error("[v0] Error creating report:", error)
       setMessage("Error al crear el reporte")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleSaveLaborNotes = async () => {
+    if (!order || !user) return
+    setIsSaving(true)
+    setMessage("")
+    try {
+      const { updateServiceOrder } = await import("@/lib/db")
+      await updateServiceOrder(order.id, {
+        ...order,
+        technicianLaborNotes: laborNotes.trim() || undefined,
+        updatedAt: new Date().toISOString(),
+      })
+      setMessage("Mano de obra guardada (nota interna)")
+      setTimeout(() => setMessage(""), 3000)
+      await loadData()
+    } catch (error) {
+      console.error("[v0] Error saving labor notes:", error)
+      setMessage("Error al guardar la mano de obra")
     } finally {
       setIsSaving(false)
     }
@@ -345,7 +374,7 @@ export default function TechnicianOrderDetailPage() {
 
   const canEdit = !order?.technicianId || order?.technicianId === user?.id
 
-  if (!order || !vehicle) {
+  if (!order) {
     return (
       <ProtectedRoute allowedRoles={["technician"]}>
         <DashboardLayout title="Detalles de Orden">
@@ -378,10 +407,10 @@ export default function TechnicianOrderDetailPage() {
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div className="space-y-1">
                     <CardTitle className="text-2xl">
-                      {vehicle.brand} {vehicle.model}
+                      {vehicle ? `${vehicle.brand} ${vehicle.model}` : "Vehículo no encontrado"}
                     </CardTitle>
                     <CardDescription className="text-base">
-                      Patente: {vehicle.licensePlate} • Cliente: {client?.name || "Desconocido"}
+                      Patente: {vehicle?.licensePlate || "SIN PLACA"} • Cliente: {client?.name || "Desconocido"}
                     </CardDescription>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-2">
@@ -600,6 +629,28 @@ export default function TechnicianOrderDetailPage() {
               </Card>
             )}
 
+            {/* Mano de obra (nota interna) */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Mano de obra (nota interna)</CardTitle>
+                <CardDescription>
+                  Visible solo para el administrador. No aparece en el PDF.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Textarea
+                  value={laborNotes}
+                  onChange={(e) => setLaborNotes(e.target.value)}
+                  placeholder="Ej: 2.5h diagnóstico + 1h cambio de sensor..."
+                  rows={5}
+                />
+                <Button onClick={handleSaveLaborNotes} disabled={isSaving || !canEdit}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Guardar mano de obra
+                </Button>
+              </CardContent>
+            </Card>
+
             {/* Intake Photos - read only for technician */}
             {order.intakePhotos && order.intakePhotos.length > 0 && (
               <Card>
@@ -666,11 +717,23 @@ export default function TechnicianOrderDetailPage() {
             <DialogHeader>
               <DialogTitle>Crear Reporte Técnico</DialogTitle>
               <DialogDescription>
-                Reporte de diagnóstico para el vehículo con placa: <strong>{vehicle.licensePlate}</strong>
+                Reporte de diagnóstico para el vehículo con placa:{" "}
+                <strong>{vehicle?.licensePlate || "SIN PLACA"}</strong>
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
+              {!vehicle?.licensePlate && (
+                <div className="space-y-2">
+                  <Label htmlFor="report-plate">Placa *</Label>
+                  <Input
+                    id="report-plate"
+                    value={reportLicensePlate}
+                    onChange={(e) => setReportLicensePlate(e.target.value.toUpperCase())}
+                    placeholder="ABC123"
+                  />
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="report-category">Categoría *</Label>
                 <Select value={reportCategory} onValueChange={setReportCategory}>

@@ -1543,6 +1543,22 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                   </div>
                 </CardContent>
               </Card>
+
+              {order?.technicianLaborNotes && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Mano de obra (nota interna del técnico)</CardTitle>
+                    <CardDescription>
+                      Solo visible en admin. No se incluye en PDFs.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="p-3 bg-muted/40 rounded-lg border">
+                      <p className="text-sm whitespace-pre-wrap">{order.technicianLaborNotes}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </div>

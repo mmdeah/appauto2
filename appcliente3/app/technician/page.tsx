@@ -9,13 +9,17 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Clock, CheckCircle2, Wrench, ListChecks, FileText, Search, AlertCircle, XCircle, User, Calendar, CheckCircle } from 'lucide-react';
-import { getServiceOrdersByTechnicianId, getVehicles, getUsers } from '@/lib/db';
+import { getServiceOrdersByTechnicianId, getVehicles, getUsers, createReport } from '@/lib/db';
 import { getClients, getReports } from '@/lib/db';
 import type { Report, ServiceState, Client } from '@/lib/types';
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS } from '@/lib/utils-service';
 import type { ServiceOrder, Vehicle } from '@/lib/types';
 import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function TechnicianPage() {
   const { user } = useAuth();
@@ -24,6 +28,12 @@ export default function TechnicianPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [quickReport, setQuickReport] = useState({
+    licensePlate: '',
+    category: 'General',
+    text: '',
+  });
+  const [quickReportMessage, setQuickReportMessage] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -45,6 +55,29 @@ export default function TechnicianPage() {
     setVehicles(allVehicles);
     setReports(allReports);
     setClients(allClients);
+  };
+
+  const handleCreateQuickReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const plate = quickReport.licensePlate.trim().toUpperCase();
+    if (!plate || !quickReport.category || !quickReport.text.trim()) {
+      setQuickReportMessage('Complete placa, categoría y el reporte');
+      return;
+    }
+    try {
+      await createReport({
+        licensePlate: plate,
+        category: quickReport.category,
+        text: quickReport.text.trim(),
+      });
+      setQuickReport({ licensePlate: '', category: 'General', text: '' });
+      setQuickReportMessage('Reporte creado exitosamente');
+      setTimeout(() => setQuickReportMessage(''), 3000);
+      await loadData();
+    } catch (error) {
+      console.error('[v0] Error creating quick report:', error);
+      setQuickReportMessage('Error al crear el reporte');
+    }
   };
 
   const getVehicleInfo = (vehicleId: string) => {
@@ -283,6 +316,82 @@ export default function TechnicianPage() {
                   )}
                 </TabsContent>
               </Tabs>
+            </CardContent>
+          </Card>
+
+          {/* Crear Reporte (sin recepción) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Crear Reporte Rápido
+              </CardTitle>
+              <CardDescription>
+                Cree un reporte de diagnóstico sin necesidad de que el vehículo esté recepcionado.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {quickReportMessage && (
+                <Alert>
+                  <AlertDescription>{quickReportMessage}</AlertDescription>
+                </Alert>
+              )}
+              <form onSubmit={handleCreateQuickReport} className="space-y-4 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="quick-plate">Placa *</Label>
+                    <Input
+                      id="quick-plate"
+                      value={quickReport.licensePlate}
+                      onChange={(e) => setQuickReport({ ...quickReport, licensePlate: e.target.value.toUpperCase() })}
+                      placeholder="ABC123"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="quick-category">Categoría *</Label>
+                    <Select
+                      value={quickReport.category}
+                      onValueChange={(value) => setQuickReport({ ...quickReport, category: value })}
+                    >
+                      <SelectTrigger id="quick-category">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[
+                          'General',
+                          'Motor',
+                          'Suspensión',
+                          'Frenos',
+                          'Transmisión',
+                          'Sistema Eléctrico',
+                          'Carrocería',
+                          'Interior',
+                          'Aire Acondicionado',
+                          'Otros',
+                        ].map((cat) => (
+                          <SelectItem key={cat} value={cat}>
+                            {cat}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="quick-text">Reporte *</Label>
+                  <Textarea
+                    id="quick-text"
+                    value={quickReport.text}
+                    onChange={(e) => setQuickReport({ ...quickReport, text: e.target.value })}
+                    placeholder="Escriba el reporte detallado del diagnóstico..."
+                    rows={6}
+                  />
+                </div>
+                <Button type="submit" className="w-full">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Crear Reporte
+                </Button>
+              </form>
             </CardContent>
           </Card>
 
