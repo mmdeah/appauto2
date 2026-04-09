@@ -1,0 +1,65 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# Lock files (usar solo pnpm-lock.yaml)
+package-lock.json
+yarn.lock
+
+# Testing
+/coverage
+
+# Next.js
+/.next/
+/out/
+/build
+/dist
+
+# Production
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Local env files
+.env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# OS
+.DS_Store
+*.pem
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Server files (si usas servidor JSON local)
+# Mantener db.json inicial, pero ignorar cambios en runtime
+server/photos/
+server/node_modules/
+
+# Backup files
+*.backup
+*.bak
+
+# Temporary files
+*.tmp
+.cache/
+
