@@ -1021,8 +1021,7 @@ export default function InvoicePage() {
                       </div>
                     </div>
                   </div>
-                ) : (
-                !showNewVehicle ? (
+                ) : (!showNewVehicle ? (
                   <>
                     <div className="space-y-2">
                       <Label htmlFor="vehicle">Vehículo</Label>
