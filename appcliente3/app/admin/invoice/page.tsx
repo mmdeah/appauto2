@@ -1135,8 +1135,7 @@ export default function InvoicePage() {
                       </Button>
                     </div>
                   </div>
-                )}
-                )}
+                ))}
               </CardContent>
             </Card>
           </div>
