@@ -19,10 +19,7 @@ import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { saveStateHistory, createStateHistory, createReport } from "@/lib/db"
+import { saveStateHistory, createStateHistory } from "@/lib/db"
 
 export default function TechnicianOrderDetailPage() {
   const params = useParams()
@@ -37,22 +34,6 @@ export default function TechnicianOrderDetailPage() {
 
   const [servicePhotos, setServicePhotos] = useState<string[]>([])
   const [selectedState, setSelectedState] = useState<ServiceState>(order?.state || "reception")
-  const [reportDialogOpen, setReportDialogOpen] = useState(false)
-  const [reportCategory, setReportCategory] = useState("")
-  const [reportText, setReportText] = useState("")
-
-  const REPORT_CATEGORIES = [
-    "General",
-    "Motor",
-    "Suspensión",
-    "Frenos",
-    "Transmisión",
-    "Sistema Eléctrico",
-    "Carrocería",
-    "Interior",
-    "Aire Acondicionado",
-    "Otros",
-  ]
 
   useEffect(() => {
     loadData()
@@ -149,34 +130,7 @@ export default function TechnicianOrderDetailPage() {
     setTimeout(() => setMessage(""), 2000)
   }
 
-  const handleCreateReport = async () => {
-    if (!vehicle || !reportCategory || !reportText.trim()) {
-      alert("Por favor complete la categoría y el reporte")
-      return
-    }
 
-    setIsSaving(true)
-    setMessage("")
-
-    try {
-      await createReport({
-        licensePlate: vehicle.licensePlate,
-        category: reportCategory,
-        text: reportText,
-      })
-
-      setMessage("Reporte creado exitosamente")
-      setReportDialogOpen(false)
-      setReportCategory("")
-      setReportText("")
-      setTimeout(() => setMessage(""), 3000)
-    } catch (error) {
-      console.error("[v0] Error creating report:", error)
-      setMessage("Error al crear el reporte")
-    } finally {
-      setIsSaving(false)
-    }
-  }
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -385,14 +339,6 @@ export default function TechnicianOrderDetailPage() {
                     </CardDescription>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-2">
-                    <Button
-                      onClick={() => setReportDialogOpen(true)}
-                      variant="outline"
-                      className="gap-2"
-                    >
-                      <FileText className="h-4 w-4" />
-                      Crear Reporte
-                    </Button>
                     <div className="flex items-center gap-2">
                       <Button
                         variant="secondary"
@@ -660,56 +606,7 @@ export default function TechnicianOrderDetailPage() {
           </div>
         </div>
 
-        {/* Report Dialog */}
-        <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Crear Reporte Técnico</DialogTitle>
-              <DialogDescription>
-                Reporte de diagnóstico para el vehículo con placa: <strong>{vehicle.licensePlate}</strong>
-              </DialogDescription>
-            </DialogHeader>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="report-category">Categoría *</Label>
-                <Select value={reportCategory} onValueChange={setReportCategory}>
-                  <SelectTrigger id="report-category">
-                    <SelectValue placeholder="Seleccione una categoría" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {REPORT_CATEGORIES.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="report-text">Reporte Técnico *</Label>
-                <Textarea
-                  id="report-text"
-                  placeholder="Escriba el reporte detallado del diagnóstico..."
-                  value={reportText}
-                  onChange={(e) => setReportText(e.target.value)}
-                  rows={8}
-                  className="resize-none"
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setReportDialogOpen(false)} disabled={isSaving}>
-                Cancelar
-              </Button>
-              <Button onClick={handleCreateReport} disabled={isSaving || !reportCategory || !reportText.trim()}>
-                {isSaving ? "Guardando..." : "Guardar Reporte"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </DashboardLayout>
     </ProtectedRoute>
   )

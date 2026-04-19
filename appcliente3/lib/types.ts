@@ -161,6 +161,7 @@ export interface Report {
   id: string
   licensePlate: string
   category: string
+  categories?: string[] // Soporte multi-categoría (compat: category se mantiene)
   text: string
   createdAt: string
   resolved?: boolean // Estado del reporte: resuelto o no resuelto

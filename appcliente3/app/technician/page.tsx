@@ -18,7 +18,7 @@ import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function TechnicianPage() {
@@ -30,7 +30,7 @@ export default function TechnicianPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [quickReport, setQuickReport] = useState({
     licensePlate: '',
-    category: 'General',
+    categories: ['General'] as string[],
     text: '',
   });
   const [quickReportMessage, setQuickReportMessage] = useState('');
@@ -60,17 +60,19 @@ export default function TechnicianPage() {
   const handleCreateQuickReport = async (e: React.FormEvent) => {
     e.preventDefault();
     const plate = quickReport.licensePlate.trim().toUpperCase();
-    if (!plate || !quickReport.category || !quickReport.text.trim()) {
-      setQuickReportMessage('Complete placa, categoría y el reporte');
+    if (!plate || !quickReport.categories.length || !quickReport.text.trim()) {
+      setQuickReportMessage('Complete placa, al menos una categoría y el reporte');
       return;
     }
     try {
+      const categories = Array.from(new Set(quickReport.categories)).filter(Boolean);
       await createReport({
         licensePlate: plate,
-        category: quickReport.category,
+        category: categories[0] || 'General',
+        categories,
         text: quickReport.text.trim(),
       });
-      setQuickReport({ licensePlate: '', category: 'General', text: '' });
+      setQuickReport({ licensePlate: '', categories: ['General'], text: '' });
       setQuickReportMessage('Reporte creado exitosamente');
       setTimeout(() => setQuickReportMessage(''), 3000);
       await loadData();
@@ -348,33 +350,40 @@ export default function TechnicianPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="quick-category">Categoría *</Label>
-                    <Select
-                      value={quickReport.category}
-                      onValueChange={(value) => setQuickReport({ ...quickReport, category: value })}
-                    >
-                      <SelectTrigger id="quick-category">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[
-                          'General',
-                          'Motor',
-                          'Suspensión',
-                          'Frenos',
-                          'Transmisión',
-                          'Sistema Eléctrico',
-                          'Carrocería',
-                          'Interior',
-                          'Aire Acondicionado',
-                          'Otros',
-                        ].map((cat) => (
-                          <SelectItem key={cat} value={cat}>
-                            {cat}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>Categorías *</Label>
+                    <div className="grid grid-cols-2 gap-2 p-3 border rounded-md bg-muted/20">
+                      {[
+                        'General',
+                        'Motor',
+                        'Suspensión',
+                        'Frenos',
+                        'Transmisión',
+                        'Sistema Eléctrico',
+                        'Carrocería',
+                        'Interior',
+                        'Aire Acondicionado',
+                        'Otros',
+                      ].map((cat) => {
+                        const checked = quickReport.categories.includes(cat);
+                        return (
+                          <label key={cat} className="flex items-center gap-2 text-sm cursor-pointer">
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(v) => {
+                                const enabled = v !== false;
+                                setQuickReport((prev) => ({
+                                  ...prev,
+                                  categories: enabled
+                                    ? Array.from(new Set([...prev.categories, cat]))
+                                    : prev.categories.filter((c) => c !== cat),
+                                }));
+                              }}
+                            />
+                            <span>{cat}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -431,6 +440,9 @@ export default function TechnicianPage() {
                     .slice(0, 6)
                     .map((report) => {
                       const isResolved = report.resolved ?? false
+                      const cats = (report.categories && report.categories.length > 0)
+                        ? report.categories
+                        : [report.category]
                       return (
                         <Card
                           key={report.id}
@@ -448,9 +460,13 @@ export default function TechnicianPage() {
                                     <h4 className="font-semibold text-sm">
                                       {report.licensePlate}
                                     </h4>
-                                    <Badge variant="outline" className="text-xs">
-                                      {report.category}
-                                    </Badge>
+                                    <div className="flex flex-wrap gap-1">
+                                      {cats.map((c) => (
+                                        <Badge key={c} variant="outline" className="text-xs">
+                                          {c}
+                                        </Badge>
+                                      ))}
+                                    </div>
                                     {isResolved ? (
                                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
                                     ) : (

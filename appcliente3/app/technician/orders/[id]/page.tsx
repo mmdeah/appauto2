@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { saveStateHistory, createStateHistory, createReport } from "@/lib/db"
+import { Checkbox } from "@/components/ui/checkbox"
 
 export default function TechnicianOrderDetailPage() {
   const params = useParams()
@@ -38,7 +39,7 @@ export default function TechnicianOrderDetailPage() {
   const [servicePhotos, setServicePhotos] = useState<string[]>([])
   const [selectedState, setSelectedState] = useState<ServiceState>(order?.state || "reception")
   const [reportDialogOpen, setReportDialogOpen] = useState(false)
-  const [reportCategory, setReportCategory] = useState("")
+  const [reportCategories, setReportCategories] = useState<string[]>([])
   const [reportText, setReportText] = useState("")
   const [reportLicensePlate, setReportLicensePlate] = useState("")
 
@@ -157,8 +158,8 @@ export default function TechnicianOrderDetailPage() {
 
   const handleCreateReport = async () => {
     const plate = (vehicle?.licensePlate || reportLicensePlate || "").trim().toUpperCase()
-    if (!plate || !reportCategory || !reportText.trim()) {
-      alert("Por favor complete placa, categoría y el reporte")
+    if (!plate || reportCategories.length === 0 || !reportText.trim()) {
+      alert("Por favor complete placa, al menos una categoría y el reporte")
       return
     }
 
@@ -166,15 +167,17 @@ export default function TechnicianOrderDetailPage() {
     setMessage("")
 
     try {
+      const categories = Array.from(new Set(reportCategories)).filter(Boolean)
       await createReport({
         licensePlate: plate,
-        category: reportCategory,
+        category: categories[0] || "General",
+        categories,
         text: reportText,
       })
 
       setMessage("Reporte creado exitosamente")
       setReportDialogOpen(false)
-      setReportCategory("")
+      setReportCategories([])
       setReportText("")
       setTimeout(() => setMessage(""), 3000)
     } catch (error) {
@@ -736,18 +739,28 @@ export default function TechnicianOrderDetailPage() {
               )}
               <div className="space-y-2">
                 <Label htmlFor="report-category">Categoría *</Label>
-                <Select value={reportCategory} onValueChange={setReportCategory}>
-                  <SelectTrigger id="report-category">
-                    <SelectValue placeholder="Seleccione una categoría" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {REPORT_CATEGORIES.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <Label>Categorías *</Label>
+                  <div className="grid grid-cols-2 gap-2 p-3 border rounded-md bg-muted/20">
+                    {REPORT_CATEGORIES.map((cat) => {
+                      const checked = reportCategories.includes(cat)
+                      return (
+                        <label key={cat} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(v) => {
+                              const enabled = v !== false
+                              setReportCategories((prev) =>
+                                enabled ? Array.from(new Set([...prev, cat])) : prev.filter((c) => c !== cat),
+                              )
+                            }}
+                          />
+                          <span>{cat}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -767,7 +780,7 @@ export default function TechnicianOrderDetailPage() {
               <Button variant="outline" onClick={() => setReportDialogOpen(false)} disabled={isSaving}>
                 Cancelar
               </Button>
-              <Button onClick={handleCreateReport} disabled={isSaving || !reportCategory || !reportText.trim()}>
+              <Button onClick={handleCreateReport} disabled={isSaving || reportCategories.length === 0 || !reportText.trim()}>
                 {isSaving ? "Guardando..." : "Guardar Reporte"}
               </Button>
             </DialogFooter>

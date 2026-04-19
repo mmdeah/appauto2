@@ -16,6 +16,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import { getServiceOrderById, createRevenue, deleteVehicle, deleteServiceOrder, createArchivedOrder } from "@/lib/db"
 import { printInvoice } from "@/lib/invoice-generator"
 import { generateOrderSummaryHTML } from "@/lib/order-summary-html"
@@ -47,6 +50,13 @@ export default function AdminPage() {
     client: null,
     technician: null
   })
+  
+  // Estados de Control de Calidad
+  const [qcRoadTest, setQcRoadTest] = useState(false)
+  const [qcServices, setQcServices] = useState<Record<string, boolean>>({})
+  const [qcWashed, setQcWashed] = useState(false)
+  const [qcNote, setQcNote] = useState("")
+
   const { user } = useAuth()
 
   useEffect(() => {
@@ -184,6 +194,10 @@ export default function AdminPage() {
 
   const handleOpenDeliveryDialog = async (order: ServiceOrder) => {
     setSelectedOrderForDelivery(order)
+    setQcRoadTest(false)
+    setQcServices({})
+    setQcWashed(false)
+    setQcNote(order.adminObservation || "")
     
     // Cargar detalles completos de la orden
     try {
@@ -227,10 +241,22 @@ export default function AdminPage() {
         })
       }
 
-      // Actualizar orden - eliminar fotos para optimizar espacio, mantener solo información de texto
+      // Actualizar orden
       await updateServiceOrder(selectedOrderForDelivery.id, {
         state: "delivered",
         deliveredAt: new Date().toISOString(),
+        adminObservation: qcNote,
+        qualityControlCheck: {
+          id: `qc-${Date.now()}`,
+          serviceOrderId: selectedOrderForDelivery.id,
+          technicianId: user.id,
+          vehicleClean: qcWashed,
+          noToolsInside: true,
+          properlyAssembled: true,
+          issueFixed: qcRoadTest,
+          additionalNotes: qcNote,
+          createdAt: new Date().toISOString()
+        },
         intakePhotos: [], // Eliminar fotos de ingreso
         servicePhotos: [], // Eliminar fotos de servicio
       })
@@ -557,19 +583,19 @@ export default function AdminPage() {
                                               )}
                                             </div>
                                             </Link>
-                                            {order.state === "quality" && order.qualityControlCheck && (
+                                            {order.state === "quality" && (
                                               <div className="mt-2 pt-2 border-t">
                                                 <Button
                                                   size="sm"
-                                                  className="w-full"
+                                                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                                                   onClick={(e) => {
                                                     e.preventDefault()
                                                     e.stopPropagation()
                                                     handleOpenDeliveryDialog(order)
                                                   }}
                                                 >
-                                                  <Package className="h-4 w-4 mr-2" />
-                                                  Entregar
+                                                  <ListChecks className="h-4 w-4 mr-2" />
+                                                  Marcar Control de Calidad
                                                 </Button>
                                               </div>
                                             )}
@@ -1099,7 +1125,54 @@ export default function AdminPage() {
                       </div>
                     </div>
                   </>
+                  </>
                 )}
+
+                {/* Control de Calidad */}
+                <>
+                  <Separator />
+                  <div>
+                    <h3 className="font-semibold text-lg mb-3">Control de Calidad</h3>
+                    <div className="space-y-4">
+                      
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="qc-road-test" checked={qcRoadTest} onCheckedChange={(c) => setQcRoadTest(c as boolean)} />
+                        <Label htmlFor="qc-road-test" className="font-medium cursor-pointer">¿Se realizó prueba de ruta? (Requerido)</Label>
+                      </div>
+
+                      <div className="space-y-2 border p-3 rounded-md">
+                        <Label className="font-medium mb-1 block">Confirmar Servicios Realizados (Requerido confirmar todos):</Label>
+                        {deliveryOrderDetails.order.services.map((service) => (
+                           <div key={service.id} className="flex items-center space-x-2 py-1">
+                             <Checkbox 
+                                id={`qc-service-${service.id}`} 
+                                checked={!!qcServices[service.id]} 
+                                onCheckedChange={(c) => setQcServices({...qcServices, [service.id]: c as boolean})} 
+                             />
+                             <Label htmlFor={`qc-service-${service.id}`} className="cursor-pointer font-normal">{service.description}</Label>
+                           </div>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="qc-washed" checked={qcWashed} onCheckedChange={(c) => setQcWashed(c as boolean)} />
+                        <Label htmlFor="qc-washed" className="font-medium cursor-pointer">¿El vehículo se entregó lavado? (Opcional)</Label>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="qc-notes" className="font-medium">Notas Adicionales / Observaciones (Aparece en Factura)</Label>
+                        <Textarea 
+                          id="qc-notes" 
+                          placeholder="Ingrese aquí las observaciones..."
+                          value={qcNote}
+                          onChange={(e) => setQcNote(e.target.value)}
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+
               </div>
             </div>
           ) : (
@@ -1112,7 +1185,14 @@ export default function AdminPage() {
             <Button variant="outline" onClick={() => setDeliveryDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleConfirmDelivery} disabled={!deliveryOrderDetails.order}>
+            <Button 
+                onClick={handleConfirmDelivery} 
+                disabled={
+                    !deliveryOrderDetails.order || 
+                    !qcRoadTest || 
+                    deliveryOrderDetails.order.services.some(s => !qcServices[s.id])
+                }
+            >
               Confirmar Entrega y Enviar Email
             </Button>
           </DialogFooter>

@@ -94,7 +94,11 @@ export default function TechnicianReportsPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold">{report.licensePlate}</h3>
-                          <Badge>{report.category}</Badge>
+                          <div className="flex flex-wrap gap-1">
+                            {(report.categories && report.categories.length > 0 ? report.categories : [report.category]).map((c) => (
+                              <Badge key={c}>{c}</Badge>
+                            ))}
+                          </div>
                         </div>
                         <p className="text-sm text-muted-foreground">
                           {new Date(report.createdAt).toLocaleDateString("es-ES", {

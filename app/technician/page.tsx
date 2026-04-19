@@ -10,8 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Clock, CheckCircle2, Wrench, ListChecks, FileText, Search, AlertCircle, XCircle, User, Calendar, CheckCircle } from 'lucide-react';
 import { getServiceOrdersByTechnicianId, getVehicles, getUsers } from '@/lib/db';
-import { getClients, getReports } from '@/lib/db';
-import type { Report, ServiceState, Client } from '@/lib/types';
+import { getClients } from '@/lib/db';
+import type { ServiceState, Client } from '@/lib/types';
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS } from '@/lib/utils-service';
 import type { ServiceOrder, Vehicle } from '@/lib/types';
 import { useAuth } from '@/lib/auth-context';
@@ -21,7 +21,6 @@ export default function TechnicianPage() {
   const { user } = useAuth();
   const [assignedOrders, setAssignedOrders] = useState<ServiceOrder[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [reports, setReports] = useState<Report[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -34,16 +33,14 @@ export default function TechnicianPage() {
   const loadData = async () => {
     if (!user) return;
     
-    const [myOrders, allVehicles, allReports, allClients] = await Promise.all([
+    const [myOrders, allVehicles, allClients] = await Promise.all([
       getServiceOrdersByTechnicianId(user.id),
       getVehicles(),
-      getReports(),
       getClients()
     ]);
     
     setAssignedOrders(myOrders.filter(o => o.state !== 'delivered'));
     setVehicles(allVehicles);
-    setReports(allReports);
     setClients(allClients);
   };
 
@@ -286,101 +283,7 @@ export default function TechnicianPage() {
             </CardContent>
           </Card>
 
-          {/* Reports Section */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5" />
-                    Reportes Técnicos
-                  </CardTitle>
-                  <CardDescription>
-                    Reportes de diagnóstico creados desde las órdenes de servicio
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {reports.length === 0 ? (
-                <div className="text-center py-8">
-                  <FileText className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-                  <p className="text-sm text-muted-foreground">
-                    No hay reportes registrados. Cree reportes desde las órdenes de servicio.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {reports
-                    .sort((a, b) => {
-                      // Ordenar: no resueltos primero, luego por fecha
-                      if (a.resolved !== b.resolved) {
-                        return a.resolved ? 1 : -1
-                      }
-                      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                    })
-                    .slice(0, 6)
-                    .map((report) => {
-                      const isResolved = report.resolved ?? false
-                      return (
-                        <Card
-                          key={report.id}
-                          className={`hover:shadow-md transition-all overflow-hidden ${
-                            isResolved
-                              ? "border-l-4 border-l-blue-500 bg-blue-50/30 dark:bg-blue-950/10"
-                              : "border-l-4 border-l-yellow-500 bg-yellow-50/30 dark:bg-yellow-950/10"
-                          }`}
-                        >
-                          <CardContent className="p-3">
-                            <div className="space-y-2">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <h4 className="font-semibold text-sm">
-                                      {report.licensePlate}
-                                    </h4>
-                                    <Badge variant="outline" className="text-xs">
-                                      {report.category}
-                                    </Badge>
-                                    {isResolved ? (
-                                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                                    ) : (
-                                      <XCircle className="h-3.5 w-3.5 text-yellow-600 dark:text-yellow-400 shrink-0" />
-                                    )}
-                                  </div>
-                                  <p className="text-[10px] text-muted-foreground">
-                                    {new Date(report.createdAt).toLocaleDateString("es-ES", {
-                                      month: "short",
-                                      day: "numeric",
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="pt-1.5 border-t border-border/50">
-                                <p className="text-xs text-foreground line-clamp-3 leading-relaxed">
-                                  {report.text}
-                                </p>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )
-                    })}
-                  {reports.length > 6 && (
-                    <div className="col-span-full text-center pt-2">
-                      <Button asChild variant="outline" size="sm">
-                        <Link href="/technician/reports">
-                          Ver todos los reportes ({reports.length})
-                        </Link>
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+
         </div>
       </DashboardLayout>
     </ProtectedRoute>
