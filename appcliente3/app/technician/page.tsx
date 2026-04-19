@@ -9,31 +9,20 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Clock, CheckCircle2, Wrench, ListChecks, FileText, Search, AlertCircle, XCircle, User, Calendar, CheckCircle } from 'lucide-react';
-import { getServiceOrdersByTechnicianId, getVehicles, getUsers, createReport } from '@/lib/db';
-import { getClients, getReports } from '@/lib/db';
-import type { Report, ServiceState, Client } from '@/lib/types';
+import { getServiceOrdersByTechnicianId, getVehicles, getUsers } from '@/lib/db';
+import { getClients } from '@/lib/db';
+import type { ServiceState, Client } from '@/lib/types';
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS } from '@/lib/utils-service';
 import type { ServiceOrder, Vehicle } from '@/lib/types';
 import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function TechnicianPage() {
   const { user } = useAuth();
   const [assignedOrders, setAssignedOrders] = useState<ServiceOrder[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [reports, setReports] = useState<Report[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [quickReport, setQuickReport] = useState({
-    licensePlate: '',
-    categories: ['General'] as string[],
-    text: '',
-  });
-  const [quickReportMessage, setQuickReportMessage] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -44,42 +33,15 @@ export default function TechnicianPage() {
   const loadData = async () => {
     if (!user) return;
     
-    const [myOrders, allVehicles, allReports, allClients] = await Promise.all([
+    const [myOrders, allVehicles, allClients] = await Promise.all([
       getServiceOrdersByTechnicianId(user.id),
       getVehicles(),
-      getReports(),
       getClients()
     ]);
     
     setAssignedOrders(myOrders.filter(o => o.state !== 'delivered'));
     setVehicles(allVehicles);
-    setReports(allReports);
     setClients(allClients);
-  };
-
-  const handleCreateQuickReport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const plate = quickReport.licensePlate.trim().toUpperCase();
-    if (!plate || !quickReport.categories.length || !quickReport.text.trim()) {
-      setQuickReportMessage('Complete placa, al menos una categoría y el reporte');
-      return;
-    }
-    try {
-      const categories = Array.from(new Set(quickReport.categories)).filter(Boolean);
-      await createReport({
-        licensePlate: plate,
-        category: categories[0] || 'General',
-        categories,
-        text: quickReport.text.trim(),
-      });
-      setQuickReport({ licensePlate: '', categories: ['General'], text: '' });
-      setQuickReportMessage('Reporte creado exitosamente');
-      setTimeout(() => setQuickReportMessage(''), 3000);
-      await loadData();
-    } catch (error) {
-      console.error('[v0] Error creating quick report:', error);
-      setQuickReportMessage('Error al crear el reporte');
-    }
   };
 
   const getVehicleInfo = (vehicleId: string) => {
@@ -321,191 +283,7 @@ export default function TechnicianPage() {
             </CardContent>
           </Card>
 
-          {/* Crear Reporte (sin recepción) */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Crear Reporte Rápido
-              </CardTitle>
-              <CardDescription>
-                Cree un reporte de diagnóstico sin necesidad de que el vehículo esté recepcionado.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {quickReportMessage && (
-                <Alert>
-                  <AlertDescription>{quickReportMessage}</AlertDescription>
-                </Alert>
-              )}
-              <form onSubmit={handleCreateQuickReport} className="space-y-4 mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="quick-plate">Placa *</Label>
-                    <Input
-                      id="quick-plate"
-                      value={quickReport.licensePlate}
-                      onChange={(e) => setQuickReport({ ...quickReport, licensePlate: e.target.value.toUpperCase() })}
-                      placeholder="ABC123"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Categorías *</Label>
-                    <div className="grid grid-cols-2 gap-2 p-3 border rounded-md bg-muted/20">
-                      {[
-                        'General',
-                        'Motor',
-                        'Suspensión',
-                        'Frenos',
-                        'Transmisión',
-                        'Sistema Eléctrico',
-                        'Carrocería',
-                        'Interior',
-                        'Aire Acondicionado',
-                        'Otros',
-                      ].map((cat) => {
-                        const checked = quickReport.categories.includes(cat);
-                        return (
-                          <label key={cat} className="flex items-center gap-2 text-sm cursor-pointer">
-                            <Checkbox
-                              checked={checked}
-                              onCheckedChange={(v) => {
-                                const enabled = v !== false;
-                                setQuickReport((prev) => ({
-                                  ...prev,
-                                  categories: enabled
-                                    ? Array.from(new Set([...prev.categories, cat]))
-                                    : prev.categories.filter((c) => c !== cat),
-                                }));
-                              }}
-                            />
-                            <span>{cat}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="quick-text">Reporte *</Label>
-                  <Textarea
-                    id="quick-text"
-                    value={quickReport.text}
-                    onChange={(e) => setQuickReport({ ...quickReport, text: e.target.value })}
-                    placeholder="Escriba el reporte detallado del diagnóstico..."
-                    rows={6}
-                  />
-                </div>
-                <Button type="submit" className="w-full">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Crear Reporte
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
 
-          {/* Reports Section */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5" />
-                    Reportes Técnicos
-                  </CardTitle>
-                  <CardDescription>
-                    Reportes de diagnóstico creados desde las órdenes de servicio
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {reports.length === 0 ? (
-                <div className="text-center py-8">
-                  <FileText className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-                  <p className="text-sm text-muted-foreground">
-                    No hay reportes registrados. Cree reportes desde las órdenes de servicio.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {reports
-                    .sort((a, b) => {
-                      // Ordenar: no resueltos primero, luego por fecha
-                      if (a.resolved !== b.resolved) {
-                        return a.resolved ? 1 : -1
-                      }
-                      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                    })
-                    .slice(0, 6)
-                    .map((report) => {
-                      const isResolved = report.resolved ?? false
-                      const cats = (report.categories && report.categories.length > 0)
-                        ? report.categories
-                        : [report.category]
-                      return (
-                        <Card
-                          key={report.id}
-                          className={`hover:shadow-md transition-all overflow-hidden ${
-                            isResolved
-                              ? "border-l-4 border-l-blue-500 bg-blue-50/30 dark:bg-blue-950/10"
-                              : "border-l-4 border-l-yellow-500 bg-yellow-50/30 dark:bg-yellow-950/10"
-                          }`}
-                        >
-                          <CardContent className="p-3">
-                            <div className="space-y-2">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <h4 className="font-semibold text-sm">
-                                      {report.licensePlate}
-                                    </h4>
-                                    <div className="flex flex-wrap gap-1">
-                                      {cats.map((c) => (
-                                        <Badge key={c} variant="outline" className="text-xs">
-                                          {c}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                    {isResolved ? (
-                                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                                    ) : (
-                                      <XCircle className="h-3.5 w-3.5 text-yellow-600 dark:text-yellow-400 shrink-0" />
-                                    )}
-                                  </div>
-                                  <p className="text-[10px] text-muted-foreground">
-                                    {new Date(report.createdAt).toLocaleDateString("es-ES", {
-                                      month: "short",
-                                      day: "numeric",
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="pt-1.5 border-t border-border/50">
-                                <p className="text-xs text-foreground line-clamp-3 leading-relaxed">
-                                  {report.text}
-                                </p>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )
-                    })}
-                  {reports.length > 6 && (
-                    <div className="col-span-full text-center pt-2">
-                      <Button asChild variant="outline" size="sm">
-                        <Link href="/technician/reports">
-                          Ver todos los reportes ({reports.length})
-                        </Link>
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
       </DashboardLayout>
     </ProtectedRoute>

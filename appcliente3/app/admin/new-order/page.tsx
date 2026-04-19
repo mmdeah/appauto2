@@ -22,6 +22,7 @@ import Link from 'next/link';
 import {
   getClients,
   saveClient,
+  updateClient,
   getVehicles,
   getUsers,
   saveServiceOrder,
@@ -54,6 +55,27 @@ export default function NewOrderPage() {
     phone: '',
     email: '',
   });
+
+  const [editClient, setEditClient] = useState({
+    name: '',
+    idNumber: '',
+    phone: '',
+    email: '',
+  });
+
+  useEffect(() => {
+    if (selectedClient && !showNewClient) {
+      const client = clients.find(c => c.id === selectedClient);
+      if (client) {
+        setEditClient({
+          name: client.name || '',
+          idNumber: client.idNumber || '',
+          phone: client.phone || '',
+          email: client.email || '',
+        });
+      }
+    }
+  }, [selectedClient, clients, showNewClient]);
 
   const [showNewVehicle, setShowNewVehicle] = useState(false);
   const [newVehicle, setNewVehicle] = useState({
@@ -153,6 +175,24 @@ export default function NewOrderPage() {
         };
         await saveClient(client);
         clientId = client.id;
+      } else if (clientId) {
+        const originalClient = clients.find(c => c.id === clientId);
+        if (originalClient && (
+            originalClient.name !== editClient.name ||
+            originalClient.idNumber !== editClient.idNumber ||
+            originalClient.phone !== editClient.phone ||
+            originalClient.email !== editClient.email
+        )) {
+            if (!editClient.name || !editClient.idNumber || !editClient.phone || !editClient.email) {
+                setError('Por favor complete todos los campos obligatorios del cliente seleccionado');
+                setIsLoading(false);
+                return;
+            }
+            await updateClient(clientId, editClient);
+            // Actualizar la lista local para evitar inconsistencias visuales
+            const updatedClient = { ...originalClient, ...editClient };
+            setClients(clients.map(c => c.id === clientId ? updatedClient : c));
+        }
       }
 
       if (!clientId) {
@@ -397,24 +437,79 @@ export default function NewOrderPage() {
                       </div>
                     </div>
                   ) : (
-                    <Select value={selectedClient} onValueChange={setSelectedClient}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccione un cliente" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {clients.length === 0 ? (
-                          <div className="p-2 text-sm text-muted-foreground">
-                            No hay clientes registrados
+                    <div className="space-y-4">
+                      <Select value={selectedClient} onValueChange={setSelectedClient}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccione un cliente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clients.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground">
+                              No hay clientes registrados
+                            </div>
+                          ) : (
+                            clients.map((client) => (
+                              <SelectItem key={client.id} value={client.id}>
+                                {client.name} - {client.idNumber}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      
+                      {selectedClient && (
+                         <div className="border rounded-lg p-4 space-y-4 bg-muted/20">
+                          <div className="flex items-center justify-between mb-2">
+                             <Label className="text-muted-foreground text-sm font-normal italic">Puede editar los datos del cliente si es necesario</Label>
                           </div>
-                        ) : (
-                          clients.map((client) => (
-                            <SelectItem key={client.id} value={client.id}>
-                              {client.name} - {client.idNumber}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
+                           <div className="grid grid-cols-2 gap-4">
+                             <div className="space-y-2">
+                               <Label htmlFor="editClientName">Nombre Completo *</Label>
+                               <Input
+                                 id="editClientName"
+                                 value={editClient.name}
+                                 onChange={(e) =>
+                                   setEditClient({ ...editClient, name: e.target.value })
+                                 }
+                               />
+                             </div>
+                             <div className="space-y-2">
+                               <Label htmlFor="editClientIdNumber">Cédula *</Label>
+                               <Input
+                                 id="editClientIdNumber"
+                                 value={editClient.idNumber}
+                                 onChange={(e) =>
+                                   setEditClient({ ...editClient, idNumber: e.target.value })
+                                 }
+                               />
+                             </div>
+                           </div>
+                           <div className="grid grid-cols-2 gap-4">
+                             <div className="space-y-2">
+                               <Label htmlFor="editClientPhone">Teléfono *</Label>
+                               <Input
+                                 id="editClientPhone"
+                                 value={editClient.phone}
+                                 onChange={(e) =>
+                                   setEditClient({ ...editClient, phone: e.target.value })
+                                 }
+                               />
+                             </div>
+                             <div className="space-y-2">
+                               <Label htmlFor="editClientEmail">Correo Electrónico *</Label>
+                               <Input
+                                 id="editClientEmail"
+                                 type="email"
+                                 value={editClient.email}
+                                 onChange={(e) =>
+                                   setEditClient({ ...editClient, email: e.target.value })
+                                 }
+                               />
+                             </div>
+                           </div>
+                         </div>
+                      )}
+                    </div>
                   )}
                 </div>
 
