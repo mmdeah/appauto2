@@ -1125,9 +1125,7 @@ export default function AdminPage() {
                       </div>
                     </div>
                   </>
-                  </>
                 )}
-
                 {/* Control de Calidad */}
                 <>
                   <Separator />
