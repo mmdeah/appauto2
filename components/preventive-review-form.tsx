@@ -12,11 +12,12 @@ import { getServiceOrderById, getChecklistCategories, savePreventiveReview } fro
 import type { ChecklistCategory, PreventiveReview, DTCCode, ReviewItem } from "@/lib/types"
 import { toast } from "sonner"
 import { Plus, Check, AlertTriangle, XCircle, Wrench, Package, Loader2 } from "lucide-react"
+import { CurrencyInput } from "@/components/currency-input"
 
 interface ReviewItemState {
   status: 'ok' | 'warning' | 'urgent' | null;
   needsPart: boolean;
-  laborCost: string;
+  laborCost: number;
 }
 
 interface DTCEntry {
@@ -58,7 +59,7 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
       cats.forEach(cat => {
         initialItems[cat.title] = {}
         cat.items.forEach(item => {
-          initialItems[cat.title][item] = { status: null, needsPart: false, laborCost: "" }
+          initialItems[cat.title][item] = { status: null, needsPart: false, laborCost: 0 }
         })
         if (cat.isEscaner) {
           initialDtcs[cat.title] = [{
@@ -162,7 +163,7 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
           name: item,
           status: stateStatus,
           needsPart: stateStatus !== 'ok' ? iState.needsPart : false,
-          laborCost: stateStatus !== 'ok' && iState.laborCost ? parseFloat(iState.laborCost) : 0
+          laborCost: stateStatus !== 'ok' ? iState.laborCost : 0
         }
       })
 
@@ -345,13 +346,12 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
                             </Label>
                             <div className="space-y-2.5">
                               <div>
-                                <Label className="text-[10px]">Costo Mano de Obra ($)</Label>
-                                <Input 
-                                  type="number" 
+                                <Label className="text-[10px]">Costo Mano de Obra</Label>
+                                <CurrencyInput 
                                   placeholder="0" 
                                   className="h-7 text-xs mt-1" 
                                   value={state.laborCost}
-                                  onChange={(e) => updateItemState(cat.title, item, 'laborCost', e.target.value)}
+                                  onChange={(val) => updateItemState(cat.title, item, 'laborCost', val)}
                                 />
                               </div>
                               <div className="flex items-center space-x-2 pt-1 border-t border-slate-200 dark:border-slate-800">
