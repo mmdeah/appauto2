@@ -1085,8 +1085,6 @@ export default function AdminPage() {
             </Card>
           )}
         </div>
-      </DashboardLayout>
-
       {/* Diálogo de Confirmación de Entrega */}
       <Dialog open={deliveryDialogOpen} onOpenChange={setDeliveryDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">

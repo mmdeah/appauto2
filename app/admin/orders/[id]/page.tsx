@@ -655,20 +655,20 @@ TOTAL: ${formatCurrency(order.quotation.total)}
       }
     })
 
-    let messageText = \`Hola \${client.name}, te enviamos la cotización de los servicios de tu vehículo (\${vehicle?.brand} \${vehicle?.licensePlate}):\\n\\n\`
-    messageText += \`*COTIZACIÓN FINAL - ORDEN #\${order.orderNumber || order.id.slice(0, 8)}*\\n\\n\`
+    let messageText = `Hola ${client.name}, te enviamos la cotización de los servicios de tu vehículo (${vehicle?.brand} ${vehicle?.licensePlate}):\n\n`
+    messageText += `*COTIZACIÓN FINAL - ORDEN #${order.orderNumber || order.id.slice(0, 8)}*\n\n`
 
     const addGroupToMsg = (items: typeof order.quotation.items, catName: string) => {
-        let text = catName ? \`*\${catName.toUpperCase()}*\\n\` : ""
+        let text = catName ? `*${catName.toUpperCase()}*\n` : ""
         let catTotal = 0
         items.forEach(item => {
             const rowTotal = item.total + ((item.includesTax !== false) ? item.total * 0.19 : 0)
             catTotal += rowTotal
-            text += \`- \${item.quantity}x \${item.description}: \${formatCurrency(rowTotal)}\\n\`
+            text += `- ${item.quantity}x ${item.description}: ${formatCurrency(rowTotal)}\n`
         })
         if (catName) {
-           text += \`_Subtotal \${catName}: \${formatCurrency(catTotal)}_\\n\\n\`
-        } else { text += "\\n" }
+           text += `_Subtotal ${catName}: ${formatCurrency(catTotal)}_\n\n`
+        } else { text += "\n" }
         return text
     }
 
@@ -679,11 +679,11 @@ TOTAL: ${formatCurrency(order.quotation.total)}
         messageText += addGroupToMsg(uncategorized, Object.keys(groupedItems).length > 0 ? "Otros / Generales" : "Servicios")
     }
 
-    messageText += \`*Total Cotización:* \${formatCurrency(order.quotation.total)}\\n\\n\`
-    messageText += \`Puedes aprobarla respondiendo este mensaje. Estaremos atentos a tus indicaciones.\`
+    messageText += `*Total Cotización:* ${formatCurrency(order.quotation.total)}\n\n`
+    messageText += `Puedes aprobarla respondiendo este mensaje. Estaremos atentos a tus indicaciones.`
 
-    const phone = client.phone.replace(/\\D/g, '')
-    const url = \`https://wa.me/\${phone}?text=\${encodeURIComponent(messageText)}\`
+    const phone = client.phone.replace(/\D/g, '')
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(messageText)}`
     window.open(url, '_blank')
   }
 
