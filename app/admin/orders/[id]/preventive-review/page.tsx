@@ -36,6 +36,7 @@ export default function AdminPreventiveReview() {
 
   const loadData = async (orderId: string) => {
     setLoading(true)
+    try {
       const [savedOrder, vehicles, clients] = await Promise.all([
          getServiceOrderById(orderId),
          getVehicles(),
