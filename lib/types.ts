@@ -115,6 +115,7 @@ export interface QuotationItem {
   unitPrice: number
   total: number // base amount (cantidad * precio unitario)
   includesTax?: boolean // Si este ítem tiene IVA (19%). Por defecto true.
+  category?: string // Para agrupar ítems (ej. Frenos, Suspensión)
 }
 
 export interface StateHistory {
@@ -215,3 +216,44 @@ export interface ArchivedOrder {
   createdAt: string // Fecha original de creación
   deliveredAt: string // Fecha de entrega
 }
+
+export interface ChecklistCategory {
+  id: string;
+  title: string;
+  isEscaner?: boolean;
+  items: string[];
+}
+
+export interface ReviewItem {
+  id: string;
+  name: string;
+  status: 'ok' | 'warning' | 'urgent'; 
+  needsPart: boolean; 
+  laborCost: number; 
+  partPrice?: number; 
+  partDescription?: string; 
+}
+
+export interface DTCCode {
+  code: string; // Ej. "P0300" o el texto manual
+  isManual: boolean;
+  description: string;
+}
+
+export interface ReviewCategory {
+  title: string;
+  isEscaner?: boolean;
+  items: ReviewItem[];
+  dtcCodes?: DTCCode[];
+}
+
+export interface PreventiveReview {
+  id: string;
+  serviceOrderId: string;
+  status: 'draft' | 'pending_admin' | 'quoted'; 
+  categories: ReviewCategory[];
+  generalObservations: string;
+  additionalAdminParts?: { category: string; description: string; price: number }[]; 
+  createdAt: string;
+}
+

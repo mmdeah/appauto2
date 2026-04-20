@@ -70,35 +70,72 @@ export function generateInvoiceHTML(
     })
   }
 
-  // Generar filas de la tabla (Descripción, Cantidad, Precio Unit., IVA, Total)
-  const itemsRows = order.quotation.items
-    .map(
-      (item: QuotationItem, index: number) => {
+  // Agrupar ítems por categoría
+  const groupedItems: Record<string, QuotationItem[]> = {}
+  const uncategorized: QuotationItem[] = []
+
+  order.quotation.items.forEach(item => {
+    if (item.category) {
+      if (!groupedItems[item.category]) groupedItems[item.category] = []
+      groupedItems[item.category].push(item)
+    } else {
+      uncategorized.push(item)
+    }
+  })
+
+  let itemsRows = ""
+  let counter = 1
+
+  const renderGroup = (items: QuotationItem[], categoryName: string) => {
+    if (items.length === 0) return ""
+    let groupHtml = ""
+    if (categoryName) {
+       groupHtml += `<tr class="category-header"><td colspan="6" style="background:#f0f4f8; font-weight:bold; color:#2563eb; padding:8px; text-transform:uppercase;">${categoryName}</td></tr>`
+    }
+    
+    let groupSubtotal = 0;
+
+    items.forEach(item => {
         const baseAmount = item.total
         const hasIva = item.includesTax !== false
         const ivaAmount = hasIva ? baseAmount * 0.19 : 0
         const rowTotal = baseAmount + ivaAmount
+        groupSubtotal += rowTotal
         const ivaCell = hasIva
           ? `<td class="text-right iva-cell">${formatCurrency(ivaAmount)}</td>`
           : `<td class="text-right">-</td>`
-        // Formatear cantidad para mostrar decimales cuando sea necesario
         const formattedQuantity = item.quantity % 1 === 0 
           ? item.quantity.toString() 
           : item.quantity.toFixed(2).replace(/\.?0+$/, '')
         
-        return `
+        groupHtml += `
     <tr>
-      <td>${index + 1}</td>
-      <td>${escapeHtml(item.description)}</td>
+      <td>${counter++}</td>
+      <td style="padding-left: ${categoryName ? '20px' : '8px'}">${escapeHtml(item.description)}</td>
       <td class="text-center">${formattedQuantity}</td>
       <td class="text-right">${formatCurrency(item.unitPrice)}</td>
       ${ivaCell}
       <td class="text-right">${formatCurrency(rowTotal)}</td>
     </tr>
   `
-      },
-    )
-    .join("")
+    })
+
+    if (categoryName) {
+       groupHtml += `<tr class="category-subtotal"><td colspan="5" class="text-right" style="font-size:10px; color:#666;">Subtotal ${categoryName}:</td><td class="text-right" style="font-weight:bold; font-size:11px;">${formatCurrency(groupSubtotal)}</td></tr>`
+    }
+
+    return groupHtml
+  }
+
+  // Renderizar primero los agrupados
+  Object.keys(groupedItems).forEach(cat => {
+     itemsRows += renderGroup(groupedItems[cat], cat)
+  })
+  
+  // Renderizar los no agrupados bajo "Otros" o sin categoría si solo hay esos
+  if (uncategorized.length > 0) {
+     itemsRows += renderGroup(uncategorized, Object.keys(groupedItems).length > 0 ? "Otros / Generales" : "")
+  }
 
   // Determinar el tipo de documento
   // Si se especifica documentType, usarlo; de lo contrario, determinar por el estado

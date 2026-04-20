@@ -63,7 +63,9 @@ if (!fs.existsSync(dbPath)) {
     expenses: [],
     revenues: [],
     reports: [],
-    ratings: []
+    ratings: [],
+    'checklist-categories': [],
+    'preventive-reviews': []
   };
   fs.writeFileSync(dbPath, JSON.stringify(initialData, null, 2));
   console.log('✅ db.json creado con estructura inicial y usuarios por defecto');
@@ -121,6 +123,15 @@ if (!fs.existsSync(dbPath)) {
   if (usersUpdated) {
     fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2));
     console.log('✅ Usuarios por defecto agregados a db.json existente');
+  }
+
+  // Ensure new collections exist
+  let collectionsUpdated = false;
+  if (!dbData['checklist-categories']) { dbData['checklist-categories'] = []; collectionsUpdated = true; }
+  if (!dbData['preventive-reviews']) { dbData['preventive-reviews'] = []; collectionsUpdated = true; }
+  if (collectionsUpdated) {
+    fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2));
+    console.log('✅ Nuevas colecciones agregadas a db.json existente');
   }
 }
 

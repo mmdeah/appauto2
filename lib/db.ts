@@ -13,6 +13,8 @@ import type {
   Report,
   ServiceRating,
   ArchivedOrder,
+  ChecklistCategory,
+  PreventiveReview,
 } from "./types"
 
 // URL base de la API (Next.js API Routes)
@@ -425,5 +427,73 @@ export async function getArchivedOrderById(id: string): Promise<ArchivedOrder | 
     return await apiRequest(`/archived-orders/${id}`)
   } catch (error) {
     return null
+  }
+}
+
+// Checklist Template functions
+export async function getChecklistCategories(): Promise<ChecklistCategory[]> {
+  try {
+    return await apiRequest('/checklist-categories')
+  } catch {
+    return []
+  }
+}
+
+export async function saveChecklistCategory(category: Partial<ChecklistCategory>): Promise<ChecklistCategory> {
+  if (category.id) {
+    return apiRequest(`/checklist-categories/${category.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(category),
+    })
+  } else {
+    return apiRequest('/checklist-categories', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...category,
+        id: Date.now().toString(),
+      }),
+    })
+  }
+}
+
+export async function deleteChecklistCategory(id: string): Promise<void> {
+  await apiRequest(`/checklist-categories/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+// Preventive Review functions
+export async function getPreventiveReviews(): Promise<PreventiveReview[]> {
+  try {
+    return await apiRequest('/preventive-reviews')
+  } catch {
+    return []
+  }
+}
+
+export async function getPreventiveReviewByOrderId(orderId: string): Promise<PreventiveReview | null> {
+  try {
+    const reviews = await getPreventiveReviews()
+    return reviews.find(r => r.serviceOrderId === orderId) || null
+  } catch {
+    return null
+  }
+}
+
+export async function savePreventiveReview(review: Partial<PreventiveReview>): Promise<PreventiveReview> {
+  if (review.id) {
+    return apiRequest(`/preventive-reviews/${review.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(review),
+    })
+  } else {
+    return apiRequest('/preventive-reviews', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...review,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString(),
+      }),
+    })
   }
 }

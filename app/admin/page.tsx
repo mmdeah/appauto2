@@ -20,7 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { getServiceOrderById, createRevenue, deleteVehicle, deleteServiceOrder, createArchivedOrder } from "@/lib/db"
-import { printInvoice } from "@/lib/invoice-generator"
+import { printInvoice, generateInvoiceHTML } from "@/lib/invoice-generator"
 import { generateOrderSummaryHTML } from "@/lib/order-summary-html"
 
 export default function AdminPage() {
@@ -222,29 +222,8 @@ export default function AdminPage() {
     if (!selectedOrderForDelivery || !user || !deliveryOrderDetails.order) return
 
     try {
-      // Crear historial de estado
-      await createStateHistory({
-        serviceOrderId: selectedOrderForDelivery.id,
-        previousState: selectedOrderForDelivery.state,
-        newState: "delivered",
-        changedBy: user.id,
-        notes: "Estado: Entregado",
-      })
-
-      // Registrar ganancia si aplica
-      if (deliveryOrderDetails.order.quotation && deliveryOrderDetails.order.quotation.total > 0) {
-        await createRevenue({
-          serviceOrderId: selectedOrderForDelivery.id,
-          amount: deliveryOrderDetails.order.quotation.total,
-          date: new Date().toISOString(),
-          description: `Orden ${deliveryOrderDetails.order.orderNumber || selectedOrderForDelivery.id.slice(0, 8)} - ${deliveryOrderDetails.vehicle ? `${deliveryOrderDetails.vehicle.brand} ${deliveryOrderDetails.vehicle.model}` : "Vehículo"}`,
-        })
-      }
-
-      // Actualizar orden
+      // Actualizar orden (Añade el control de calidad SIN finalizarla)
       await updateServiceOrder(selectedOrderForDelivery.id, {
-        state: "delivered",
-        deliveredAt: new Date().toISOString(),
         adminObservation: qcNote,
         qualityControlCheck: {
           id: `qc-${Date.now()}`,
@@ -256,44 +235,73 @@ export default function AdminPage() {
           issueFixed: qcRoadTest,
           additionalNotes: qcNote,
           createdAt: new Date().toISOString()
-        },
-        intakePhotos: [], // Eliminar fotos de ingreso
-        servicePhotos: [], // Eliminar fotos de servicio
+        }
       })
-
-      // Obtener historial de estados para el resumen
-      const orderHistory = await getStateHistoryByOrderId(selectedOrderForDelivery.id)
-
-      // Generar HTML del resumen de la orden (misma plantilla que antes se enviaba por email)
-      if (
-        deliveryOrderDetails.order &&
-        deliveryOrderDetails.client &&
-        deliveryOrderDetails.vehicle
-      ) {
-        const summaryHtml = generateOrderSummaryHTML(
-          deliveryOrderDetails.order,
-          deliveryOrderDetails.client,
-          deliveryOrderDetails.vehicle,
-          deliveryOrderDetails.technician,
-          orderHistory,
-        )
-
-        const licensePlate =
-          deliveryOrderDetails.vehicle.licensePlate ||
-          `Orden_${deliveryOrderDetails.order.orderNumber || selectedOrderForDelivery.id.slice(0, 8)}`
-
-        // Abrir ventana de impresión / guardar como PDF
-        printInvoice(summaryHtml, licensePlate, "invoice")
-      }
 
       setDeliveryDialogOpen(false)
       setSelectedOrderForDelivery(null)
       setDeliveryOrderDetails({ order: null, vehicle: null, client: null, technician: null })
       await loadData()
     } catch (error) {
-      console.error("[v0] Error confirming delivery:", error)
-      alert("Error al procesar la entrega. Por favor intente nuevamente.")
+      console.error("[v0] Error confirming delivery QC:", error)
+      alert("Error al procesar el control de calidad. Por favor intente nuevamente.")
     }
+  }
+
+  const handleDownloadInvoice = (order: ServiceOrder) => {
+    if (!order.quotation) {
+        alert("La orden no tiene cotización asociada.")
+        return
+    }
+    const client = clients.find(c => c.id === order.clientId)
+    const vehicle = vehicles.find(v => v.id === order.vehicleId)
+    
+    if (client && vehicle) {
+      const html = generateInvoiceHTML(order, client, vehicle) 
+      const licensePlate = vehicle.licensePlate || `Orden_${order.orderNumber || order.id.slice(0, 8)}`
+      printInvoice(html, licensePlate, "cuenta_de_cobro")
+    } else {
+        alert("Faltan datos de Cliente o Vehículo para generar la cuenta.")
+    }
+  }
+
+  const handleFinalDelivery = async (order: ServiceOrder) => {
+     if (!user) return
+
+     try {
+      // Crear historial de estado
+      await createStateHistory({
+        serviceOrderId: order.id,
+        previousState: order.state,
+        newState: "delivered",
+        changedBy: user.id,
+        notes: "Estado: Entregado",
+      })
+
+      // Registrar ganancia si aplica
+      if (order.quotation && order.quotation.total > 0) {
+        const vehicle = vehicles.find(v => v.id === order.vehicleId)
+        await createRevenue({
+          serviceOrderId: order.id,
+          amount: order.quotation.total,
+          date: new Date().toISOString(),
+          description: `Orden ${order.orderNumber || order.id.slice(0, 8)} - ${vehicle ? `${vehicle.brand} ${vehicle.model}` : "Vehículo"}`,
+        })
+      }
+
+      // Actualizar orden final a "delivered"
+      await updateServiceOrder(order.id, {
+        state: "delivered",
+        deliveredAt: new Date().toISOString(),
+        intakePhotos: [], 
+        servicePhotos: [], 
+      })
+      
+      await loadData()
+     } catch (e) {
+        console.error("Error finalizing delivery", e)
+        alert("Error al finalizar la entrega.")
+     }
   }
 
   const activeOrders = serviceOrders.filter((order) => order.state !== "delivered")
@@ -583,7 +591,7 @@ export default function AdminPage() {
                                               )}
                                             </div>
                                             </Link>
-                                            {order.state === "quality" && (
+                                            {order.state === "quality" && !order.qualityControlCheck && (
                                               <div className="mt-2 pt-2 border-t">
                                                 <Button
                                                   size="sm"
@@ -596,6 +604,35 @@ export default function AdminPage() {
                                                 >
                                                   <ListChecks className="h-4 w-4 mr-2" />
                                                   Marcar Control de Calidad
+                                                </Button>
+                                              </div>
+                                            )}
+                                            {order.state === "quality" && order.qualityControlCheck && (
+                                              <div className="mt-2 pt-2 border-t flex flex-col gap-2">
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  className="w-full"
+                                                  onClick={(e) => {
+                                                    e.preventDefault()
+                                                    e.stopPropagation()
+                                                    handleDownloadInvoice(order)
+                                                  }}
+                                                >
+                                                  <FileText className="h-4 w-4 mr-2" />
+                                                  Descargar C. de Cobro
+                                                </Button>
+                                                <Button
+                                                  size="sm"
+                                                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                                                  onClick={(e) => {
+                                                    e.preventDefault()
+                                                    e.stopPropagation()
+                                                    handleFinalDelivery(order)
+                                                  }}
+                                                >
+                                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                                  Marcar Entregado
                                                 </Button>
                                               </div>
                                             )}
@@ -1191,7 +1228,7 @@ export default function AdminPage() {
                     deliveryOrderDetails.order.services.some(s => !qcServices[s.id])
                 }
             >
-              Confirmar Entrega y Enviar Email
+              Guardar Control de Calidad
             </Button>
           </DialogFooter>
         </DialogContent>

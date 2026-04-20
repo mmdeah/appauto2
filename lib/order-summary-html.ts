@@ -39,6 +39,52 @@ export function generateOrderSummaryHTML(
     (a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime(),
   )
 
+  let quotationRows = ""
+  if (order.quotation) {
+    const groupedItems: Record<string, any[]> = {}
+    const uncategorized: any[] = []
+    
+    order.quotation.items.forEach(item => {
+      if (item.category) {
+        if (!groupedItems[item.category]) groupedItems[item.category] = []
+        groupedItems[item.category].push(item)
+      } else {
+        uncategorized.push(item)
+      }
+    })
+
+    const renderGroupRows = (items: any[], catName: string) => {
+       if (items.length === 0) return ""
+       let html = ""
+       let subtotalCat = 0
+       if (catName) {
+           html += `<tr><td colspan="4" style="background:#f3f4f6; font-weight:bold; color:#1e40af; padding:6px; font-size:12px;">CATEGORÍA: ${catName.toUpperCase()}</td></tr>`
+       }
+       items.forEach(item => {
+           subtotalCat += item.total
+           html += `
+              <tr>
+                <td style="padding-left:${catName ? '15px' : '4px'}">${item.description}</td>
+                <td class="text-center">${item.quantity}</td>
+                <td class="text-right">${formatCurrency(item.unitPrice)}</td>
+                <td class="text-right">${formatCurrency(item.total)}</td>
+              </tr>
+           `
+       })
+       if (catName) {
+           html += `<tr><td colspan="4" class="text-right" style="font-size:11px; color:#666; border-bottom:2px solid #e5e7eb; padding-bottom:8px; padding-top:4px;">Subtotal ${catName}: <strong>${formatCurrency(subtotalCat)}</strong></td></tr>`
+       }
+       return html
+    }
+
+    Object.keys(groupedItems).forEach(cat => {
+       quotationRows += renderGroupRows(groupedItems[cat], cat)
+    })
+    if (uncategorized.length > 0) {
+       quotationRows += renderGroupRows(uncategorized, Object.keys(groupedItems).length > 0 ? "Otros / Generales" : "")
+    }
+  }
+
   return `
     <!DOCTYPE html>
     <html lang="es">
@@ -336,18 +382,7 @@ export function generateOrderSummaryHTML(
                 </tr>
               </thead>
               <tbody>
-                ${order.quotation.items
-                  .map(
-                    (item) => `
-                  <tr>
-                    <td>${item.description}</td>
-                    <td class="text-center">${item.quantity}</td>
-                    <td class="text-right">${formatCurrency(item.unitPrice)}</td>
-                    <td class="text-right">${formatCurrency(item.total)}</td>
-                  </tr>
-                `,
-                  )
-                  .join("")}
+                ${quotationRows}
               </tbody>
             </table>
             <div class="totals">
