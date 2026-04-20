@@ -21,7 +21,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { saveStateHistory, createStateHistory } from "@/lib/db"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
-
+import { PreventiveReviewForm } from "@/components/preventive-review-form"
 export default function TechnicianOrderDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -437,15 +437,8 @@ export default function TechnicianOrderDetailPage() {
                        <span className="font-semibold text-blue-800 dark:text-blue-300">Formulario de Revisión General Preventiva</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent className="pb-4 pt-1">
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                       Ingresa aquí para diligenciar el formato de verificación y diagnóstico especial (incluyendo lectura con Escáner).
-                    </p>
-                    <Button asChild className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
-                       <Link href={`/technician/orders/${order.id}/preventive-review`}>
-                         <ClipboardCheck className="h-4 w-4 mr-2" /> Abrir Formulario
-                       </Link>
-                    </Button>
+                  <AccordionContent className="pb-4 pt-1 bg-white dark:bg-slate-950/50 rounded-b-lg mt-2 mx-[-1px] mb-[-1px] px-2 sm:px-4">
+                    <PreventiveReviewForm orderId={order.id} onSaved={loadData} />
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>

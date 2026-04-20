@@ -127,7 +127,16 @@ if (!fs.existsSync(dbPath)) {
 
   // Ensure new collections exist
   let collectionsUpdated = false;
-  if (!dbData['checklist-categories']) { dbData['checklist-categories'] = []; collectionsUpdated = true; }
+  if (!dbData['checklist-categories'] || dbData['checklist-categories'].length === 0) {
+    dbData['checklist-categories'] = [
+      { id: "1", title: "Frenos", isEscaner: false, items: ["Pastillas", "Discos", "Líquido", "Campanas"] },
+      { id: "2", title: "Dirección / Suspensión", isEscaner: false, items: ["Amortiguadores", "Rótulas", "Terminales", "Tijeras"] },
+      { id: "3", title: "Motor / Diagnóstico", isEscaner: true, items: ["Batería", "Filtro Aire", "Bujías"] },
+      { id: "4", title: "Eléctrico e Iluminación", isEscaner: false, items: ["Farolas frontales", "Stops", "Direccionales"] },
+      { id: "5", title: "Fluidos", isEscaner: false, items: ["Transmisión", "Refrigerante", "Aceite Dirección"] }
+    ];
+    collectionsUpdated = true;
+  }
   if (!dbData['preventive-reviews']) { dbData['preventive-reviews'] = []; collectionsUpdated = true; }
   if (collectionsUpdated) {
     fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2));
