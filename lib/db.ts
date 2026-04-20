@@ -146,6 +146,24 @@ export async function saveVehicle(
   })
 }
 
+export async function updateVehicle(id: string, updates: Partial<Vehicle>): Promise<Vehicle | null> {
+  try {
+    const vehicles = await getVehicles()
+    const vehicle = vehicles.find(v => v.id === id)
+    if (!vehicle) return null
+    
+    return apiRequest(`/vehicles/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        ...vehicle,
+        ...updates
+      })
+    })
+  } catch {
+    return null
+  }
+}
+
 export async function deleteVehicle(id: string): Promise<void> {
   await apiRequest(`/vehicles/${id}`, {
     method: 'DELETE'

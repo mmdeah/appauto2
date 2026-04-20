@@ -27,6 +27,7 @@ import {
   getUsers,
   saveServiceOrder,
   saveVehicle,
+  updateVehicle,
   saveStateHistory,
 } from '@/lib/db';
 import { generateId, generateOrderNumber } from '@/lib/utils-service';
@@ -85,6 +86,29 @@ export default function NewOrderPage() {
     licensePlate: '',
     color: '',
   });
+
+  const [editVehicle, setEditVehicle] = useState({
+    brand: '',
+    model: '',
+    year: new Date().getFullYear(),
+    licensePlate: '',
+    color: '',
+  });
+
+  useEffect(() => {
+    if (selectedVehicle && !showNewVehicle) {
+      const vehicle = vehicles.find(v => v.id === selectedVehicle);
+      if (vehicle) {
+        setEditVehicle({
+          brand: vehicle.brand || '',
+          model: vehicle.model || '',
+          year: vehicle.year || new Date().getFullYear(),
+          licensePlate: vehicle.licensePlate || '',
+          color: vehicle.color || '',
+        });
+      }
+    }
+  }, [selectedVehicle, vehicles, showNewVehicle]);
 
   const [services, setServices] = useState<string[]>(['']);
   const [intakePhotos, setIntakePhotos] = useState<string[]>([]);
@@ -217,6 +241,24 @@ export default function NewOrderPage() {
         };
         await saveVehicle(vehicle);
         vehicleId = vehicle.id;
+      } else if (vehicleId) {
+        const originalVehicle = vehicles.find(v => v.id === vehicleId);
+        if (originalVehicle && (
+             originalVehicle.brand !== editVehicle.brand ||
+             originalVehicle.model !== editVehicle.model ||
+             originalVehicle.year !== editVehicle.year ||
+             originalVehicle.licensePlate !== editVehicle.licensePlate ||
+             originalVehicle.color !== editVehicle.color
+        )) {
+            if (!editVehicle.brand || !editVehicle.model || !editVehicle.licensePlate) {
+                setError('Por favor complete todos los campos obligatorios del vehículo seleccionado');
+                setIsLoading(false);
+                return;
+            }
+            await updateVehicle(vehicleId, editVehicle);
+            const updatedVehicle = { ...originalVehicle, ...editVehicle };
+            setVehicles(vehicles.map(v => v.id === vehicleId ? updatedVehicle : v));
+        }
       }
 
       if (!vehicleId) {
@@ -599,24 +641,97 @@ export default function NewOrderPage() {
                           </div>
                         </div>
                       ) : (
-                        <Select value={selectedVehicle} onValueChange={setSelectedVehicle} disabled={showNewClient}>
-                          <SelectTrigger>
-                            <SelectValue placeholder={showNewClient ? "Agregue el vehículo nuevo" : "Seleccione un vehículo"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {clientVehicles.length === 0 ? (
-                              <div className="p-2 text-sm text-muted-foreground">
-                                No hay vehículos registrados
+                        <div className="space-y-4">
+                          <Select value={selectedVehicle} onValueChange={setSelectedVehicle} disabled={showNewClient}>
+                            <SelectTrigger>
+                              <SelectValue placeholder={showNewClient ? "Agregue el vehículo nuevo" : "Seleccione un vehículo"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {clientVehicles.length === 0 ? (
+                                <div className="p-2 text-sm text-muted-foreground">
+                                  No hay vehículos registrados
+                                </div>
+                              ) : (
+                                clientVehicles.map((vehicle) => (
+                                  <SelectItem key={vehicle.id} value={vehicle.id}>
+                                    {vehicle.brand} {vehicle.model} - {vehicle.licensePlate}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+
+                          {selectedVehicle && (
+                            <div className="border rounded-lg p-4 space-y-4 bg-muted/20">
+                              <div className="flex items-center justify-between mb-2">
+                                <Label className="text-muted-foreground text-sm font-normal italic">Puede editar los datos del vehículo si es necesario</Label>
                               </div>
-                            ) : (
-                              clientVehicles.map((vehicle) => (
-                                <SelectItem key={vehicle.id} value={vehicle.id}>
-                                  {vehicle.brand} {vehicle.model} - {vehicle.licensePlate}
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="editBrand">Marca *</Label>
+                                  <Input
+                                    id="editBrand"
+                                    value={editVehicle.brand}
+                                    onChange={(e) =>
+                                      setEditVehicle({ ...editVehicle, brand: e.target.value })
+                                    }
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="editModel">Modelo *</Label>
+                                  <Input
+                                    id="editModel"
+                                    value={editVehicle.model}
+                                    onChange={(e) =>
+                                      setEditVehicle({ ...editVehicle, model: e.target.value })
+                                    }
+                                  />
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="editYear">Año</Label>
+                                  <Input
+                                    id="editYear"
+                                    type="number"
+                                    value={editVehicle.year}
+                                    onChange={(e) =>
+                                      setEditVehicle({
+                                        ...editVehicle,
+                                        year: parseInt(e.target.value) || new Date().getFullYear(),
+                                      })
+                                    }
+                                    min="1900"
+                                    max={new Date().getFullYear() + 1}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="editLicensePlate">Placa *</Label>
+                                  <Input
+                                    id="editLicensePlate"
+                                    value={editVehicle.licensePlate}
+                                    onChange={(e) =>
+                                      setEditVehicle({
+                                        ...editVehicle,
+                                        licensePlate: e.target.value.toUpperCase(),
+                                      })
+                                    }
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="editColor">Color</Label>
+                                <Input
+                                  id="editColor"
+                                  value={editVehicle.color}
+                                  onChange={(e) =>
+                                    setEditVehicle({ ...editVehicle, color: e.target.value })
+                                  }
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   </>

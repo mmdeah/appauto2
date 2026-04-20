@@ -37,10 +37,11 @@ import {
   updateQuotation,
   createRevenue,
   updateClient,
+  getPreventiveReviewByOrderId
 } from "@/lib/db"
 import { generateInvoiceHTML, printInvoice, generateQualityControlHTML } from "@/lib/invoice-generator"
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, generateId, formatCurrency, getNextState, getPreviousState } from "@/lib/utils-service"
-import type { ServiceOrder, Vehicle, User as UserType, Client, StateHistory, QuotationItem, ServiceState } from "@/lib/types"
+import type { ServiceOrder, Vehicle, User as UserType, Client, StateHistory, QuotationItem, ServiceState, PreventiveReview } from "@/lib/types"
 import { generateOrderSummaryHTML } from "@/lib/order-summary-html"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/lib/auth-context"
@@ -55,6 +56,7 @@ export default function AdminOrderDetailPage() {
   const [technician, setTechnician] = useState<UserType | null>(null)
   const [allTechnicians, setAllTechnicians] = useState<UserType[]>([])
   const [history, setHistory] = useState<StateHistory[]>([])
+  const [review, setReview] = useState<PreventiveReview | null>(null)
 
   const [quotationItems, setQuotationItems] = useState<QuotationItem[]>([])
   const [newItem, setNewItem] = useState({ description: "", quantity: 1, unitPrice: 0 })
@@ -100,12 +102,13 @@ export default function AdminOrderDetailPage() {
   const loadData = async () => {
     const orderId = params.id as string
     try {
-      const [orderData, vehicles, users, clients, historyData] = await Promise.all([
+      const [orderData, vehicles, users, clients, historyData, reviewData] = await Promise.all([
         getServiceOrderById(orderId),
         getVehicles(),
         getUsers(),
         getClients(),
         getStateHistoryByOrderId(orderId),
+        getPreventiveReviewByOrderId(orderId)
       ])
 
       if (!orderData) {
@@ -131,6 +134,7 @@ export default function AdminOrderDetailPage() {
       setTechnician(orderData.technicianId ? users.find((u) => u.id === orderData.technicianId) || null : null)
       setAllTechnicians(users.filter((u) => u.role === "technician"))
       setHistory(historyData.sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime()))
+      setReview(reviewData || null)
 
       if (orderData.quotation) {
         const globalIncludesTax = orderData.quotation.includesTax ?? true
@@ -637,6 +641,52 @@ TOTAL: ${formatCurrency(order.quotation.total)}
     }
   }
 
+  const handleSendToWhatsApp = () => {
+    if (!order || !order.quotation || !client) return
+    
+    const groupedItems: Record<string, typeof order.quotation.items> = {}
+    const uncategorized: typeof order.quotation.items = []
+    order.quotation.items.forEach(item => {
+      if (item.category) {
+        if (!groupedItems[item.category]) groupedItems[item.category] = []
+        groupedItems[item.category].push(item)
+      } else {
+        uncategorized.push(item)
+      }
+    })
+
+    let messageText = \`Hola \${client.name}, te enviamos la cotización de los servicios de tu vehículo (\${vehicle?.brand} \${vehicle?.licensePlate}):\\n\\n\`
+    messageText += \`*COTIZACIÓN FINAL - ORDEN #\${order.orderNumber || order.id.slice(0, 8)}*\\n\\n\`
+
+    const addGroupToMsg = (items: typeof order.quotation.items, catName: string) => {
+        let text = catName ? \`*\${catName.toUpperCase()}*\\n\` : ""
+        let catTotal = 0
+        items.forEach(item => {
+            const rowTotal = item.total + ((item.includesTax !== false) ? item.total * 0.19 : 0)
+            catTotal += rowTotal
+            text += \`- \${item.quantity}x \${item.description}: \${formatCurrency(rowTotal)}\\n\`
+        })
+        if (catName) {
+           text += \`_Subtotal \${catName}: \${formatCurrency(catTotal)}_\\n\\n\`
+        } else { text += "\\n" }
+        return text
+    }
+
+    Object.keys(groupedItems).forEach(catName => {
+        messageText += addGroupToMsg(groupedItems[catName], catName)
+    })
+    if (uncategorized.length > 0) {
+        messageText += addGroupToMsg(uncategorized, Object.keys(groupedItems).length > 0 ? "Otros / Generales" : "Servicios")
+    }
+
+    messageText += \`*Total Cotización:* \${formatCurrency(order.quotation.total)}\\n\\n\`
+    messageText += \`Puedes aprobarla respondiendo este mensaje. Estaremos atentos a tus indicaciones.\`
+
+    const phone = client.phone.replace(/\\D/g, '')
+    const url = \`https://wa.me/\${phone}?text=\${encodeURIComponent(messageText)}\`
+    window.open(url, '_blank')
+  }
+
   const handleStateAdvance = async () => {
     if (!order || !user) return
     const nextState = getNextState(order.state)
@@ -752,6 +802,39 @@ TOTAL: ${formatCurrency(order.quotation.total)}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-3">
+              {review && review.status === "pending_admin" && (
+                <div className="mb-2 p-4 bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-800 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-amber-100 dark:bg-amber-900 rounded-full flex items-center justify-center flex-shrink-0">
+                       <CheckCircle2 className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                       <h3 className="font-semibold text-amber-900 dark:text-amber-300">Revisión Preventiva Lista</h3>
+                       <p className="text-sm text-amber-700 dark:text-amber-400">El técnico completó la revisión. Requiere asignación de costos y repuestos.</p>
+                    </div>
+                  </div>
+                  <Button asChild className="bg-amber-600 hover:bg-amber-700 text-white whitespace-nowrap">
+                    <Link href={`/admin/orders/${order.id}/preventive-review`}>
+                      Revisar y Costear
+                    </Link>
+                  </Button>
+                </div>
+              )}
+              {review && review.status === "quoted" && (
+                <div className="mb-2 p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    <span className="font-medium text-blue-900 dark:text-blue-300 text-sm">Diagnóstico y Revisión Preventiva</span>
+                  </div>
+                  <Button asChild variant="outline" size="sm" className="bg-white dark:bg-transparent">
+                    <Link href={`/admin/orders/${order.id}/preventive-review`}>
+                      Ver Diagnóstico
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </div>
             <div className="lg:col-span-2 space-y-6">
               <Card>
                 <CardHeader>
@@ -1151,60 +1234,97 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                           )}
                         </div>
                         {order.quotation && vehicle && client && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={downloadQuotationPDF}
-                            className="gap-2"
-                          >
-                            <Download className="h-4 w-4" />
-                            Descargar Cotización (PDF)
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={downloadQuotationPDF}
+                              className="gap-2"
+                            >
+                              <Download className="h-4 w-4" />
+                              <span className="hidden sm:inline">PDF</span>
+                            </Button>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={handleSendToWhatsApp}
+                              className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                              <span className="hidden sm:inline">Enviar Whatsapp</span>
+                            </Button>
+                          </div>
                         )}
                       </div>
-                      <div className="space-y-3">
-                        {order.quotation.items.map((item) => {
-                          // Verificar si el ítem de cotización también está en servicios programados
-                          const isInScheduledServices = order.services?.some(
-                            service => service.description.toLowerCase().trim() === item.description.toLowerCase().trim()
-                          ) || false;
-                          
-                          return (
-                            <div
-                              key={item.id}
-                              className={`flex items-start gap-3 p-3 border rounded-lg transition-colors ${
-                                isInScheduledServices 
-                                  ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-950/50' 
-                                  : 'hover:bg-muted/50'
-                              }`}
-                            >
-                              <Checkbox
-                                id={`item-${item.id}`}
-                                checked={selectedItemIds.has(item.id)}
-                                onCheckedChange={() => toggleItemSelection(item.id)}
-                                className="mt-1"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <label htmlFor={`item-${item.id}`} className="text-sm font-medium cursor-pointer block">
-                                  {item.description}
-                                </label>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  {item.quantity} x {formatCurrency(item.unitPrice)}
-                                </p>
+                      <div className="space-y-6">
+                        {(() => {
+                           const groupedQItems: Record<string, typeof order.quotation.items> = {}
+                           const uncategorized: typeof order.quotation.items = []
+                           order.quotation.items.forEach(item => {
+                              if (item.category) {
+                                 if (!groupedQItems[item.category]) groupedQItems[item.category] = []
+                                 groupedQItems[item.category].push(item)
+                              } else {
+                                 uncategorized.push(item)
+                              }
+                           })
+
+                           const renderList = (items: typeof order.quotation.items, title?: string) => (
+                              <div className="space-y-3">
+                                 {title && <h4 className="font-bold text-slate-700 bg-slate-100 p-2 rounded uppercase text-xs border">{title}</h4>}
+                                 {items.map((item) => {
+                                  const isInScheduledServices = order.services?.some(
+                                    service => service.description.toLowerCase().trim() === item.description.toLowerCase().trim()
+                                  ) || false;
+                                  
+                                  return (
+                                    <div
+                                      key={item.id}
+                                      className={`flex items-start gap-3 p-3 border rounded-lg transition-colors ${
+                                        isInScheduledServices 
+                                          ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-950/50' 
+                                          : 'hover:bg-muted/50'
+                                      }`}
+                                    >
+                                      <Checkbox
+                                        id={`item-${item.id}`}
+                                        checked={selectedItemIds.has(item.id)}
+                                        onCheckedChange={() => toggleItemSelection(item.id)}
+                                        className="mt-1"
+                                      />
+                                      <div className="flex-1 min-w-0">
+                                        <label htmlFor={`item-${item.id}`} className="text-sm font-medium cursor-pointer block">
+                                          {item.description}
+                                        </label>
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                          {item.quantity} x {formatCurrency(item.unitPrice)}
+                                        </p>
+                                      </div>
+                                      <div className="text-right flex items-center gap-2">
+                                        {isInScheduledServices && (
+                                          <Badge variant="outline" className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700">
+                                            Programado
+                                          </Badge>
+                                        )}
+                                        <p className="text-sm font-semibold whitespace-nowrap">
+                                          {formatCurrency(item.total + ((item.includesTax !== false) ? item.total * 0.19 : 0))}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  );
+                                 })}
                               </div>
-                              <div className="text-right flex items-center gap-2">
-                                {isInScheduledServices && (
-                                  <Badge variant="outline" className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700">
-                                    Programado
-                                  </Badge>
-                                )}
-                                <p className="text-sm font-semibold whitespace-nowrap">
-                                  {formatCurrency(item.total + ((item.includesTax !== false) ? item.total * 0.19 : 0))}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        })}
+                           )
+
+                           return (
+                             <>
+                               {Object.keys(groupedQItems).map(catName => (
+                                 <div key={catName}>{renderList(groupedQItems[catName], catName)}</div>
+                               ))}
+                               {uncategorized.length > 0 && renderList(uncategorized, Object.keys(groupedQItems).length > 0 ? "Otros / Generales" : "")}
+                             </>
+                           )
+                        })()}
                       </div>
 
                       {selectedItemIds.size > 0 && (

@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
-import { ArrowLeft, Calendar, User, Camera, Save, RefreshCw, CheckCircle2, FileText, ChevronLeft, ChevronRight } from "lucide-react"
+import { ArrowLeft, Calendar, User, Camera, Save, RefreshCw, CheckCircle2, FileText, ChevronLeft, ChevronRight, ClipboardCheck } from "lucide-react"
 // Las funciones ahora se importan dinámicamente desde lib/db para usar la API
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, getNextState, getPreviousState } from "@/lib/utils-service"
 import type { ServiceOrder, Vehicle, User as UserType, StateHistory, ServiceState } from "@/lib/types"
@@ -20,6 +20,7 @@ import Link from "next/link"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { saveStateHistory, createStateHistory } from "@/lib/db"
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 
 export default function TechnicianOrderDetailPage() {
   const params = useParams()
@@ -425,6 +426,29 @@ export default function TechnicianOrderDetailPage() {
                   Esta orden está asignada a otro técnico. Solo puede ver la información.
                 </AlertDescription>
               </Alert>
+            )}
+
+            {canEdit && (
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="preventive-review" className="bg-blue-50 dark:bg-blue-950/20 px-4 rounded-lg border border-blue-200 dark:border-blue-900 shadow-sm">
+                  <AccordionTrigger className="hover:no-underline py-4">
+                    <div className="flex items-center gap-2">
+                       <ClipboardCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                       <span className="font-semibold text-blue-800 dark:text-blue-300">Formulario de Revisión General Preventiva</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4 pt-1">
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                       Ingresa aquí para diligenciar el formato de verificación y diagnóstico especial (incluyendo lectura con Escáner).
+                    </p>
+                    <Button asChild className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
+                       <Link href={`/technician/orders/${order.id}/preventive-review`}>
+                         <ClipboardCheck className="h-4 w-4 mr-2" /> Abrir Formulario
+                       </Link>
+                    </Button>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             )}
 
             {canEdit && order.services && Array.isArray(order.services) && order.services.length > 0 && (
