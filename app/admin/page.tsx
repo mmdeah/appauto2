@@ -14,7 +14,6 @@ import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
@@ -52,7 +51,6 @@ export default function AdminPage() {
     client: null,
     technician: null
   })
-  const [selectedOrderForSheet, setSelectedOrderForSheet] = useState<ServiceOrder | null>(null)
   
   // Estados de Control de Calidad
   const [qcRoadTest, setQcRoadTest] = useState(false)
@@ -544,9 +542,15 @@ export default function AdminPage() {
                                           }`}
                                         >
                                           <div className="p-3 bg-card border rounded-lg hover:shadow-md transition-all">
-                                            <div
-                                              onClick={() => setSelectedOrderForSheet(order)}
-                                              className="block cursor-pointer"
+                                            <Link
+                                              href={`/admin/orders/${order.id}`}
+                                              className="block"
+                                              onClick={(e) => {
+                                                // Prevenir navegación si estamos arrastrando o haciendo click en el botón
+                                                if (draggedOrderId) {
+                                                  e.preventDefault()
+                                                }
+                                              }}
                                             >
                                               <div className="space-y-2">
                                                 <div className="flex items-start justify-between gap-2">
@@ -614,7 +618,7 @@ export default function AdminPage() {
                                                 </div>
                                               )}
                                             </div>
-                                            </div>
+                                            </Link>
                                             
                                               <div className="mt-2 pt-2 border-t">
                                                 <Button
@@ -1279,84 +1283,6 @@ export default function AdminPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-        {/* Sheet de Vista Rápida */}
-        <Sheet open={!!selectedOrderForSheet} onOpenChange={(open) => !open && setSelectedOrderForSheet(null)}>
-          <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-            {selectedOrderForSheet && (
-              <>
-                <SheetHeader className="mb-4">
-                  <SheetTitle className="flex justify-between items-center">
-                    Orden {selectedOrderForSheet.orderNumber || `#${selectedOrderForSheet.id.slice(0, 8)}`}
-                    <Badge className={SERVICE_STATE_COLORS[selectedOrderForSheet.state]}>
-                      {SERVICE_STATE_LABELS[selectedOrderForSheet.state]}
-                    </Badge>
-                  </SheetTitle>
-                  <SheetDescription>
-                    Creada el {new Date(selectedOrderForSheet.createdAt).toLocaleDateString("es-ES", {
-                      day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit"
-                    })}
-                  </SheetDescription>
-                </SheetHeader>
-                
-                <div className="space-y-6 mt-4">
-                  <div>
-                    <h4 className="text-sm font-semibold mb-2">Vehículo</h4>
-                    <div className="bg-muted p-3 rounded-lg text-sm">
-                      {getVehicleInfo(selectedOrderForSheet.vehicleId) ? (
-                        <>
-                          <p className="font-medium">{getVehicleInfo(selectedOrderForSheet.vehicleId)?.brand} {getVehicleInfo(selectedOrderForSheet.vehicleId)?.model}</p>
-                          <p className="text-muted-foreground text-xs">{getVehicleInfo(selectedOrderForSheet.vehicleId)?.licensePlate}</p>
-                        </>
-                      ) : (
-                        <p className="text-muted-foreground">No encontrado</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="text-sm font-semibold mb-2">Cliente</h4>
-                    <div className="bg-muted p-3 rounded-lg text-sm">
-                      <p className="font-medium">{getClientName(selectedOrderForSheet.clientId)}</p>
-                    </div>
-                  </div>
-
-                  {selectedOrderForSheet.description && (
-                    <div>
-                      <h4 className="text-sm font-semibold mb-2">Motivo de Ingreso</h4>
-                      <p className="text-sm text-muted-foreground">{selectedOrderForSheet.description}</p>
-                    </div>
-                  )}
-
-                  {selectedOrderForSheet.technicianId && (
-                    <div>
-                      <h4 className="text-sm font-semibold mb-2">Técnico Asignado</h4>
-                      <p className="text-sm">{getTechnicianName(selectedOrderForSheet.technicianId)}</p>
-                    </div>
-                  )}
-                  
-                  {selectedOrderForSheet.diagnosis && (
-                    <div>
-                      <h4 className="text-sm font-semibold mb-2">Diagnóstico / Revisión</h4>
-                      <p className="text-sm text-muted-foreground">{selectedOrderForSheet.diagnosis}</p>
-                    </div>
-                  )}
-
-                  <div className="pt-4 mt-6 border-t flex flex-col gap-2">
-                    <Button asChild className="w-full">
-                      <Link href={`/admin/orders/${selectedOrderForSheet.id}`}>
-                        Ir al Detalle Completo
-                      </Link>
-                    </Button>
-                    <Button variant="outline" className="w-full" onClick={() => setSelectedOrderForSheet(null)}>
-                      Cerrar Vista Rápida
-                    </Button>
-                  </div>
-                </div>
-              </>
-            )}
-          </SheetContent>
-        </Sheet>
       </DashboardLayout>
     </ProtectedRoute>
   )

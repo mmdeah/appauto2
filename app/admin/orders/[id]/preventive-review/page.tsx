@@ -11,6 +11,8 @@ import type { ServiceOrder, PreventiveReview, Quotation, QuotationItem } from "@
 import { toast } from "sonner"
 import { useParams, useRouter } from "next/navigation"
 import { CheckCircle, AlertTriangle, FileText, Plus, XCircle, Wrench, Package, PackagePlus, Trash2 } from "lucide-react"
+import { Label } from "@/components/ui/label"
+import { CurrencyInput } from "@/components/currency-input"
 
 export default function AdminPreventiveReview() {
   const { id } = useParams()
@@ -272,13 +274,12 @@ export default function AdminPreventiveReview() {
                                     onChange={(e) => updatePartPrice(item.id, 'desc', e.target.value)}
                                   />
                                   <div className="flex items-center gap-2">
-                                    <span className="text-sm font-bold text-slate-500">$</span>
-                                    <Input 
-                                      type="number"
+                                    <span className="text-[10px] font-bold text-slate-500">VALOR</span>
+                                    <CurrencyInput 
                                       placeholder="0" 
                                       className="h-8 text-sm font-semibold bg-white"
-                                      value={partPrices[item.id]?.price || ""}
-                                      onChange={(e) => updatePartPrice(item.id, 'price', e.target.value)}
+                                      value={partPrices[item.id]?.price ? parseFloat(partPrices[item.id].price) : 0}
+                                      onChange={(val) => updatePartPrice(item.id, 'price', val.toString())}
                                     />
                                   </div>
                                 </div>
@@ -302,13 +303,12 @@ export default function AdminPreventiveReview() {
                                 />
                               </div>
                               <div className="w-1/3">
-                                <Label className="text-xs">Precio ($)</Label>
-                                <Input 
-                                  type="number" 
+                                <Label className="text-xs">Precio</Label>
+                                <CurrencyInput 
                                   placeholder="0" 
                                   className="h-8 mt-1 bg-white" 
-                                  value={addPart.price}
-                                  onChange={(e) => updateAdditionalPart(globalIdx, 'price', e.target.value)}
+                                  value={addPart.price ? parseFloat(addPart.price) : 0}
+                                  onChange={(val) => updateAdditionalPart(globalIdx, 'price', val.toString())}
                                 />
                               </div>
                               <Button variant="ghost" size="icon" className="h-8 w-8 mb-0.5 text-red-500 hover:text-red-700" onClick={() => removeAdditionalPart(globalIdx)}>

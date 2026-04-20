@@ -13,9 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { ArrowLeft, FileText, Plus, Trash2, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
-import { getReports, getVehicles, getServiceOrders, getClients, deleteReport } from "@/lib/db"
+import { getReports, getVehicles, getServiceOrders, getClients, deleteReport, getPreventiveReviews } from "@/lib/db"
 import { generateVehicleReportHTML, printInvoice } from "@/lib/invoice-generator"
-import type { Report, Vehicle, ServiceOrder, Client } from "@/lib/types"
+import type { Report, Vehicle, ServiceOrder, Client, PreventiveReview } from "@/lib/types"
 
 const REPORT_CATEGORIES = [
   "General",
@@ -35,6 +35,7 @@ export default function ReportsPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [orders, setOrders] = useState<ServiceOrder[]>([])
   const [clients, setClients] = useState<Client[]>([])
+  const [preventiveReviews, setPreventiveReviews] = useState<PreventiveReview[]>([])
   const [loading, setLoading] = useState(true)
   
   // Formulario de reporte
@@ -58,16 +59,18 @@ export default function ReportsPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [reportsData, vehiclesData, ordersData, clientsData] = await Promise.all([
+      const [reportsData, vehiclesData, ordersData, clientsData, preventiveData] = await Promise.all([
         getReports(),
         getVehicles(),
         getServiceOrders(),
         getClients(),
+        getPreventiveReviews()
       ])
       setReports(reportsData)
       setVehicles(vehiclesData)
       setOrders(ordersData)
       setClients(clientsData)
+      setPreventiveReviews(preventiveData)
     } catch (error) {
       console.error("[v0] Error loading data:", error)
     } finally {
@@ -190,15 +193,61 @@ export default function ReportsPage() {
             {/* Mitad Izquierda: Reportes de Técnicos */}
             <div className="space-y-4">
               <h2 className="font-semibold text-xl">Reportes de Técnicos</h2>
-              {reports.length === 0 ? (
+              {(reports.length === 0 && preventiveReviews.length === 0) ? (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
                     <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No hay reportes técnicos registrados</p>
+                    <p>No hay reportes técnicos ni revisiones general registradas</p>
                   </CardContent>
                 </Card>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  {/* Revisiones Preventivas */}
+                  {preventiveReviews
+                    .sort((a, b) => new Date(b.createdAt || Date.now()).getTime() - new Date(a.createdAt || Date.now()).getTime())
+                    .map((pr) => {
+                      const order = orders.find((o) => o.id === pr.serviceOrderId)
+                      const vehicle = vehicles.find((v) => v.id === order?.vehicleId)
+                      
+                      return (
+                        <Card key={'pr-'+pr.id} className="hover:shadow-md transition-all border-blue-200 bg-blue-50/30">
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="font-semibold text-sm text-blue-900">Ord. #{order?.orderNumber || order?.id.slice(0,6)} - {vehicle?.licensePlate || "Desconocido"}</h3>
+                                  <Badge className={`${pr.status === 'pending_admin' ? 'bg-orange-500' : 'bg-green-500'} text-[10px]`}>
+                                    {pr.status === 'pending_admin' ? 'Rev. Preventiva (Por Costear)' : 'Rev. Preventiva (Cotizado)'}
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground mb-2">
+                                  {(pr.createdAt ? new Date(pr.createdAt) : new Date()).toLocaleDateString("es-ES", {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </p>
+                              </div>
+                              <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700 flex-shrink-0" title="Ver Revisión">
+                                <Link href={`/admin/orders/${pr.serviceOrderId}/preventive-review`}>
+                                  Ver y Cotizar
+                                </Link>
+                              </Button>
+                            </div>
+                            {pr.generalObservations && (
+                              <>
+                                <Separator className="my-2 border-blue-100" />
+                                <p className="text-sm whitespace-pre-wrap line-clamp-3 text-slate-700">{pr.generalObservations}</p>
+                              </>
+                            )}
+                          </CardContent>
+                        </Card>
+                      )
+                  })}
+
+                  {/* Reportes Antiguos o de Nota Libre */}
                   {reports
                     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                     .map((report) => (
