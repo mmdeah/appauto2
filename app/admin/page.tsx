@@ -7,9 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Car, Users, Wrench, TrendingUp, DollarSign, TrendingDown, Search, Filter, AlertCircle, CheckCircle2, XCircle, User, Calendar, ListChecks, CheckCircle, Clock, Trash2, Package, Star, FileText, ChevronRight, MessageCircle } from "lucide-react"
-import { getServiceOrders, getVehicles, getUsers, getClients, getDashboardStats, getReports, updateReport, deleteReport, updateServiceOrder, createStateHistory, getRatings, updateRating, getStateHistoryByOrderId } from "@/lib/db"
+import { getServiceOrders, getVehicles, getUsers, getClients, getDashboardStats, getReports, updateReport, deleteReport, updateServiceOrder, createStateHistory, getRatings, updateRating, getStateHistoryByOrderId, getPreventiveReviews } from "@/lib/db"
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, formatCurrency } from "@/lib/utils-service"
-import type { ServiceOrder, Vehicle, User, Client, Report, ServiceState } from "@/lib/types"
+import type { ServiceOrder, Vehicle, User, Client, Report, ServiceState, PreventiveReview } from "@/lib/types"
 import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -30,6 +30,7 @@ export default function AdminPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [technicians, setTechnicians] = useState<User[]>([])
   const [reports, setReports] = useState<Report[]>([])
+  const [preventiveReviews, setPreventiveReviews] = useState<PreventiveReview[]>([])
   const [ratings, setRatings] = useState<any[]>([])
   const [stats, setStats] = useState({
     vehiclesServed: 0,
@@ -68,7 +69,7 @@ export default function AdminPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-            const [orders, allVehicles, allUsers, allClients, dashboardStats, allReports, allRatings] = await Promise.all([
+      const [orders, allVehicles, allUsers, allClients, dashboardStats, allReports, allRatings, allReviews] = await Promise.all([
         getServiceOrders().catch((err) => {
           console.error("[v0] Error loading orders:", err)
           return []
@@ -104,15 +105,20 @@ export default function AdminPage() {
                 console.error("[v0] Error loading ratings:", err)
                 return []
               }),
+              getPreventiveReviews().catch((err) => {
+                console.error("[v0] Error loading preventive reviews:", err)
+                return []
+              })
             ])
 
       setServiceOrders(orders)
       setVehicles(allVehicles)
       setClients(allClients)
-            setTechnicians(allUsers.filter((u) => u.role === "technician"))
-            setStats(dashboardStats)
-            setReports(allReports)
-            setRatings(allRatings)
+      setTechnicians(allUsers.filter((u) => u.role === "technician"))
+      setStats(dashboardStats)
+      setReports(allReports)
+      setPreventiveReviews(allReviews)
+      setRatings(allRatings)
     } catch (error) {
       console.error("[v0] Error loading dashboard data:", error)
       setServiceOrders([])
@@ -773,6 +779,21 @@ export default function AdminPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Preventive Reviews Fast Access Block */}
+          {preventiveReviews.filter(pr => pr.status === 'pending_admin').length > 0 && (
+            <Card className="border-orange-300 bg-orange-50/50 shadow-sm animate-in fade-in slide-in-from-bottom-4">
+              <CardContent className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                 <div>
+                    <h3 className="font-bold text-lg text-orange-900 flex items-center gap-2"><Package className="h-5 w-5"/> Revisiones Preventivas Por Costear</h3>
+                    <p className="text-sm text-orange-800">Tienes {preventiveReviews.filter(pr => pr.status === 'pending_admin').length} revisión(es) enviada(s) por los técnicos esperando que ingreses costos de repuestos.</p>
+                 </div>
+                 <Button asChild size="sm" className="bg-orange-600 hover:bg-orange-700 text-white shrink-0">
+                    <Link href="/admin/reports">Ir a Administrar</Link>
+                 </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Reports Section */}
           <Card>

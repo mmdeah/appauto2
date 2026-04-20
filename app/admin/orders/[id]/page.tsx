@@ -655,16 +655,42 @@ TOTAL: ${formatCurrency(order.quotation.total)}
       }
     })
 
-    let messageText = `Hola ${client.name}, te enviamos la cotización de los servicios de tu vehículo (${vehicle?.brand} ${vehicle?.licensePlate}):\n\n`
+    let messageText = `Hola ${client.name}, te enviamos el diagnóstico y la cotización de tu vehículo (${vehicle?.brand} ${vehicle?.licensePlate}):\n\n`
+    
+    if (review) {
+        messageText += `*REPORTE VEHÍCULO (${vehicle?.licensePlate || "Sin Placa"})*\n`
+        review.categories.forEach(cat => {
+           let catStatus = "✅ OK"
+           const fails = cat.items.filter(i => i.status !== 'ok' && i.status !== null)
+           
+           if (fails.some(i => i.status === 'urgent')) catStatus = "❌ URGENTE"
+           else if (fails.length > 0) catStatus = "👁 REVISAR"
+           else if (cat.items.every(i => i.status === null)) return; // Skip if completely empty/unreviewed
+           
+           messageText += `*${cat.title}:* ${catStatus}\n`
+           if (fails.length > 0) {
+              fails.forEach(fail => {
+                const icon = fail.status === 'urgent' ? '❌' : '👁'
+                messageText += `  └ ${icon} ${fail.name}\n`
+              })
+           }
+        })
+        messageText += `\n`
+    }
+
     messageText += `*COTIZACIÓN FINAL - ORDEN #${order.orderNumber || order.id.slice(0, 8)}*\n\n`
 
     const addGroupToMsg = (items: typeof order.quotation.items, catName: string) => {
         let text = catName ? `*${catName.toUpperCase()}*\n` : ""
         let catTotal = 0
         items.forEach(item => {
-            const rowTotal = item.total + ((item.includesTax !== false) ? item.total * 0.19 : 0)
-            catTotal += rowTotal
-            text += `- ${item.quantity}x ${item.description}: ${formatCurrency(rowTotal)}\n`
+            if (item.unitPrice === 0 && item.description.includes("(PENDIENTE")) {
+                text += `- ${item.quantity}x ${item.description}: Pendiente por cotizar ⏳\n`
+            } else {
+                const rowTotal = item.total + ((item.includesTax !== false) ? item.total * 0.19 : 0)
+                catTotal += rowTotal
+                text += `- ${item.quantity}x ${item.description}: ${formatCurrency(rowTotal)}\n`
+            }
         })
         if (catName) {
            text += `_Subtotal ${catName}: ${formatCurrency(catTotal)}_\n\n`
