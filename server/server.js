@@ -143,6 +143,14 @@ if (!fs.existsSync(dbPath)) {
     collectionsUpdated = true;
   }
   if (!dbData['preventive-reviews']) { dbData['preventive-reviews'] = []; collectionsUpdated = true; }
+  if (!dbData['special-services'] || dbData['special-services'].length === 0) { 
+    dbData['special-services'] = [
+      { id: "1", name: "Sincronización", categoryName: "Chequeo Visual Motor" },
+      { id: "2", name: "Mantenimiento de Frenos", categoryName: "Frenos" },
+      { id: "3", name: "Revisión y Diagnóstico Avanzado", askCategory: true }
+    ]; 
+    collectionsUpdated = true; 
+  }
   if (collectionsUpdated) {
     fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2));
     console.log('✅ Nuevas colecciones agregadas a db.json existente');

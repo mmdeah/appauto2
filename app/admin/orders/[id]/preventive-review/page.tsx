@@ -299,7 +299,10 @@ export default function AdminPreventiveReview() {
                                  <span className="flex items-center gap-1 font-semibold text-slate-800">{item.name}</span>
                               </div>
                               <div className="flex flex-col gap-2 text-sm text-slate-600 pl-6">
-                                 <Label className="text-[10px] text-slate-400 font-bold flex items-center gap-1"><Wrench className="h-3 w-3"/> MANO DE OBRA</Label>
+                                 <Label className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                                   <Wrench className="h-3 w-3"/> MANO DE OBRA 
+                                   {item.adminPricesLabor && <span className="ml-2 text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded border border-orange-200">El técnico delegó este costo</span>}
+                                 </Label>
                                  <CurrencyInput 
                                    className="h-8 text-sm w-32 font-bold" 
                                    value={item.laborCost} 

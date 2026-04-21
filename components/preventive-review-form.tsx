@@ -8,16 +8,22 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { getServiceOrderById, getChecklistCategories, savePreventiveReview } from "@/lib/db"
-import type { ChecklistCategory, PreventiveReview, DTCCode, ReviewItem } from "@/lib/types"
+import { getServiceOrderById, getChecklistCategories, savePreventiveReview, getSpecialServices } from "@/lib/db"
+import type { ChecklistCategory, PreventiveReview, DTCCode, ReviewItem, SpecialService } from "@/lib/types"
 import { toast } from "sonner"
-import { Plus, Check, AlertTriangle, XCircle, Wrench, Package, Loader2 } from "lucide-react"
+import { Plus, Check, AlertTriangle, XCircle, Wrench, Package, Loader2, Sparkles } from "lucide-react"
 import { CurrencyInput } from "@/components/currency-input"
 
 interface ReviewItemState {
   status: 'ok' | 'warning' | 'urgent' | null;
   needsPart: boolean;
   laborCost: number;
+  adminPricesLabor: boolean;
+}
+
+interface SpecialServiceState {
+  selected: boolean;
+  categoryNameSelected: string;
 }
 
 interface DTCEntry {
@@ -39,6 +45,9 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
   const [itemStates, setItemStates] = useState<Record<string, Record<string, ReviewItemState>>>({})
   const [dtcStates, setDtcStates] = useState<Record<string, DTCEntry[]>>({})
   const [generalObservations, setGeneralObservations] = useState("")
+
+  const [specialServices, setSpecialServices] = useState<SpecialService[]>([])
+  const [ssStates, setSsStates] = useState<Record<string, SpecialServiceState>>({})
   
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -49,17 +58,26 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
 
   const loadData = async (oid: string) => {
     try {
-      const cats = await getChecklistCategories()
+      const [cats, specs] = await Promise.all([
+        getChecklistCategories(),
+        getSpecialServices()
+      ])
       setCategories(cats)
+      setSpecialServices(specs)
 
       // Initialize states
       const initialItems: Record<string, Record<string, ReviewItemState>> = {}
       const initialDtcs: Record<string, DTCEntry[]> = {}
+      const initialSs: Record<string, SpecialServiceState> = {}
+
+      specs.forEach(s => {
+        initialSs[s.id] = { selected: false, categoryNameSelected: s.askCategory ? (cats[0]?.title || "") : s.categoryName }
+      })
 
       cats.forEach(cat => {
         initialItems[cat.title] = {}
         cat.items.forEach(item => {
-          initialItems[cat.title][item] = { status: null, needsPart: false, laborCost: 0 }
+          initialItems[cat.title][item] = { status: null, needsPart: false, laborCost: 0, adminPricesLabor: false }
         })
         if (cat.isEscaner) {
           initialDtcs[cat.title] = [{
@@ -74,6 +92,7 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
       })
       setItemStates(initialItems)
       setDtcStates(initialDtcs)
+      setSsStates(initialSs)
     } catch (e) {
       toast.error("Error al cargar datos del formulario")
     } finally {
@@ -90,6 +109,16 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
           ...prev[catTitle]?.[itemName],
           [field]: value
         }
+      }
+    }))
+  }
+
+  const updateSsState = (ssId: string, field: keyof SpecialServiceState, value: any) => {
+    setSsStates(prev => ({
+      ...prev,
+      [ssId]: {
+        ...prev[ssId],
+        [field]: value
       }
     }))
   }
@@ -163,7 +192,27 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
           name: item,
           status: stateStatus,
           needsPart: stateStatus !== 'ok' ? iState.needsPart : false,
-          laborCost: stateStatus !== 'ok' ? iState.laborCost : 0
+          laborCost: stateStatus !== 'ok' && !iState.adminPricesLabor ? (iState.laborCost || 0) : 0,
+          adminPricesLabor: stateStatus !== 'ok' ? iState.adminPricesLabor : false
+        }
+      })
+
+      // Add Special Services for this category
+      specialServices.forEach(s => {
+        const sState = ssStates[s.id]
+        if (sState && sState.selected) {
+           const matchesCategory = s.askCategory ? (sState.categoryNameSelected === cat.title) : (s.categoryName === cat.title)
+           if (matchesCategory) {
+              reviewItems.push({
+                 id: `spec-${s.id}`,
+                 name: `[Especial] ${s.name}`,
+                 status: 'warning',
+                 needsPart: false,
+                 laborCost: 0,
+                 adminPricesLabor: true // They can delegate or not, but let's automate it to admin pricing for specials, or just standard 0.
+              })
+              globalNeedsPart = true
+           }
         }
       })
 
@@ -345,14 +394,27 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
                               <Wrench className="h-3 w-3" /> Reparación Requerida
                             </Label>
                             <div className="space-y-2.5">
-                              <div>
-                                <Label className="text-[10px]">Costo Mano de Obra</Label>
-                                <CurrencyInput 
-                                  placeholder="0" 
-                                  className="h-7 text-xs mt-1" 
-                                  value={state.laborCost}
-                                  onChange={(val) => updateItemState(cat.title, item, 'laborCost', val)}
-                                />
+                              <div className="flex gap-4 items-end">
+                                <div className="flex-1">
+                                  <Label className="text-[10px]">Costo Mano de Obra</Label>
+                                  <CurrencyInput 
+                                    placeholder="0" 
+                                    className="h-7 text-xs mt-1" 
+                                    value={state.laborCost}
+                                    disabled={state.adminPricesLabor}
+                                    onChange={(val) => updateItemState(cat.title, item, 'laborCost', val)}
+                                  />
+                                </div>
+                                <div className="flex items-center space-x-2 pb-1.5">
+                                  <Checkbox 
+                                    id={`admin-labor-${cat.title}-${item}`} 
+                                    checked={state.adminPricesLabor}
+                                    onCheckedChange={(c) => updateItemState(cat.title, item, 'adminPricesLabor', !!c)}
+                                  />
+                                  <Label htmlFor={`admin-labor-${cat.title}-${item}`} className="text-[10px] font-medium text-slate-500 cursor-pointer">
+                                    No lo fijo yo (Admin)
+                                  </Label>
+                                </div>
                               </div>
                               <div className="flex items-center space-x-2 pt-1 border-t border-slate-200 dark:border-slate-800">
                                 <Checkbox 
@@ -375,6 +437,55 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
           </Card>
         ))}
       </div>
+
+      {specialServices.length > 0 && (
+        <div className="px-4 pb-4">
+          <Card className="shadow-none border-blue-200 dark:border-blue-900">
+            <CardHeader className="p-3 bg-blue-50 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-900">
+               <CardTitle className="text-[10px] uppercase tracking-wide text-blue-800 dark:text-blue-400 flex items-center gap-1">
+                 <Sparkles className="h-3 w-3" /> Servicios Especiales Recomendados
+               </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+               {specialServices.map(ss => {
+                 const st = ssStates[ss.id]
+                 if (!st) return null
+                 return (
+                   <div key={ss.id} className="flex items-start gap-2 p-2 border rounded border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                     <Checkbox 
+                        id={`ss-${ss.id}`}
+                        checked={st.selected}
+                        onCheckedChange={(c) => updateSsState(ss.id, 'selected', !!c)}
+                        className="mt-1"
+                     />
+                     <div className="flex-1 space-y-2">
+                        <Label htmlFor={`ss-${ss.id}`} className="text-xs font-semibold cursor-pointer block">{ss.name}</Label>
+                        {st.selected && ss.askCategory && (
+                          <div>
+                            <Label className="text-[10px] text-slate-500 mb-1 block">¿A qué categoría aplica?</Label>
+                            <Select value={st.categoryNameSelected} onValueChange={(val) => updateSsState(ss.id, 'categoryNameSelected', val)}>
+                               <SelectTrigger className="h-7 text-xs">
+                                 <SelectValue placeholder="Seleccionar..." />
+                               </SelectTrigger>
+                               <SelectContent>
+                                 {categories.map(c => <SelectItem key={c.id} value={c.title}>{c.title}</SelectItem>)}
+                               </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                        {st.selected && !ss.askCategory && (
+                          <div className="text-[10px] text-slate-500">
+                            Aplica a: <span className="font-semibold">{ss.categoryName}</span>
+                          </div>
+                        )}
+                     </div>
+                   </div>
+                 )
+               })}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="px-4 pb-4">
         <Card className="shadow-none border-slate-200 dark:border-slate-800">

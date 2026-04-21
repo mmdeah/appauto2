@@ -13,8 +13,10 @@ import type {
   Report,
   ServiceRating,
   ArchivedOrder,
+  ReviewCategory,
   ChecklistCategory,
   PreventiveReview,
+  SpecialService,
 } from "./types"
 
 // URL base de la API (Next.js API Routes)
@@ -514,4 +516,42 @@ export async function savePreventiveReview(review: Partial<PreventiveReview>): P
       }),
     })
   }
+}
+
+export async function deletePreventiveReview(id: string): Promise<void> {
+  await apiRequest(`/preventive-reviews/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+// Special Services functions
+export async function getSpecialServices(): Promise<SpecialService[]> {
+  try {
+    return await apiRequest('/special-services')
+  } catch {
+    return []
+  }
+}
+
+export async function saveSpecialService(service: Partial<SpecialService>): Promise<SpecialService> {
+  if (service.id) {
+    return apiRequest(`/special-services/${service.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(service),
+    })
+  } else {
+    return apiRequest('/special-services', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...service,
+        id: Date.now().toString(),
+      }),
+    })
+  }
+}
+
+export async function deleteSpecialService(id: string): Promise<void> {
+  await apiRequest(`/special-services/${id}`, {
+    method: 'DELETE',
+  })
 }

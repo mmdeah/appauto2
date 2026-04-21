@@ -23,7 +23,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowLeft, Car, Plus, Trash2, Save, CheckCircle2, FileText, Edit, Download, Package, ChevronLeft, ChevronRight, MessageCircle } from "lucide-react"
+import { ArrowLeft, Car, Plus, Trash2, Save, CheckCircle2, FileText, Edit, Download, Package, ChevronLeft, ChevronRight, MessageCircle, RotateCcw } from "lucide-react"
 import Link from "next/link"
 import {
   getServiceOrderById,
@@ -38,7 +38,8 @@ import {
   createRevenue,
   updateClient,
   getPreventiveReviewByOrderId,
-  getChecklistCategories
+  getChecklistCategories,
+  deletePreventiveReview
 } from "@/lib/db"
 import { generateInvoiceHTML, printInvoice, generateQualityControlHTML } from "@/lib/invoice-generator"
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, generateId, formatCurrency, getNextState, getPreviousState } from "@/lib/utils-service"
@@ -626,6 +627,21 @@ TOTAL: ${formatCurrency(order.quotation.total)}
     }
   }
 
+  const handleRestartReview = async () => {
+    if (!review || !order) return;
+    if (!confirm("¿Estás seguro de que deseas borrar este reporte y obligar al técnico a llenarlo nuevamente? Se perderá todo lo valorizado en esta orden.")) return;
+    try {
+      await deletePreventiveReview(review.id);
+      if (order.state === "quotation" || order.state === "pending_admin") {
+         await updateServiceOrder(order.id, { state: 'reception' });
+      }
+      toast.success("Diagnóstico reiniciado con éxito");
+      loadData();
+    } catch (e) {
+      toast.error("Error al reiniciar el diagnóstico");
+    }
+  }
+
   const downloadQualityControlPDF = () => {
     if (!order || !order.qualityControlCheck || !vehicle || !client) {
       alert("No se puede generar el PDF. El control de calidad no está completado.")
@@ -662,23 +678,26 @@ TOTAL: ${formatCurrency(order.quotation.total)}
     let messageText = `Hola ${client.name}, te enviamos el diagnóstico y la cotización de tu vehículo (${vehicle?.brand} ${vehicle?.licensePlate}):\n\n`
     
     if (review) {
-        messageText += `*REPORTE VEHÍCULO (${vehicle?.licensePlate || "Sin Placa"})*\n`
+        messageText += `*REPORTE DIAGNÓSTICO DEL VEHÍCULO:*\n`
         review.categories.forEach(cat => {
-           let catStatus = "✅ OK"
+           let catStatus = "[En Buen Estado]"
            const fails = cat.items.filter(i => i.status !== 'ok' && i.status !== null)
            
-           if (fails.some(i => i.status === 'urgent')) catStatus = "❌ URGENTE"
-           else if (fails.length > 0) catStatus = "👁 REVISAR"
+           if (fails.some(i => i.status === 'urgent')) catStatus = "[Requiere Atención Urgente]"
+           else if (fails.length > 0) catStatus = "[Revisión Sugerida]"
            else if (cat.items.every(i => i.status === null)) return; // Skip if completely empty/unreviewed
            
            messageText += `*${cat.title}:* ${catStatus}\n`
            if (fails.length > 0) {
               fails.forEach(fail => {
-                const icon = fail.status === 'urgent' ? '❌' : '👁'
-                messageText += `  └ ${icon} ${fail.name}\n`
+                const priorityPrefix = fail.status === 'urgent' ? 'Urgente:' : 'Atención:'
+                messageText += `  - ${priorityPrefix} ${fail.name}\n`
               })
            }
         })
+        if (review.generalObservations && review.generalObservations.trim() !== '') {
+            messageText += `\n*Observaciones Generales:*\n${review.generalObservations}\n`
+        }
         messageText += `\n`
     }
 
@@ -844,11 +863,16 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                        <p className="text-sm text-amber-700 dark:text-amber-400">El técnico completó la revisión. Requiere asignación de costos y repuestos.</p>
                     </div>
                   </div>
-                  <Button asChild className="bg-amber-600 hover:bg-amber-700 text-white whitespace-nowrap">
-                    <Link href={`/admin/orders/${order.id}/preventive-review`}>
-                      Revisar y Costear
-                    </Link>
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="border-red-200 text-red-600 hover:bg-red-50" onClick={handleRestartReview}>
+                      <RotateCcw className="h-4 w-4 mr-2" /> Reiniciar
+                    </Button>
+                    <Button asChild className="bg-amber-600 hover:bg-amber-700 text-white whitespace-nowrap">
+                      <Link href={`/admin/orders/${order.id}/preventive-review`}>
+                        Revisar y Costear
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
               )}
               {review && review.status === "quoted" && (

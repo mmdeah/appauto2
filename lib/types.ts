@@ -230,8 +230,16 @@ export interface ReviewItem {
   status: 'ok' | 'warning' | 'urgent'; 
   needsPart: boolean; 
   laborCost: number; 
+  adminPricesLabor?: boolean;
   partPrice?: number; 
   partDescription?: string; 
+}
+
+export interface SpecialService {
+  id: string;
+  name: string;
+  categoryName: string;
+  askCategory?: boolean;
 }
 
 export interface DTCCode {

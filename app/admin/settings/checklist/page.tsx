@@ -7,14 +7,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Plus, Trash2, Save, Tags } from "lucide-react"
-import { getChecklistCategories, saveChecklistCategory, deleteChecklistCategory } from "@/lib/db"
-import type { ChecklistCategory } from "@/lib/types"
+import { getChecklistCategories, saveChecklistCategory, deleteChecklistCategory, getSpecialServices, saveSpecialService, deleteSpecialService } from "@/lib/db"
+import type { ChecklistCategory, SpecialService } from "@/lib/types"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 
 export default function ChecklistSettingsPage() {
   const [categories, setCategories] = useState<ChecklistCategory[]>([])
+  const [specialServices, setSpecialServices] = useState<SpecialService[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -25,8 +27,12 @@ export default function ChecklistSettingsPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const data = await getChecklistCategories()
+      const [data, specs] = await Promise.all([
+         getChecklistCategories(),
+         getSpecialServices()
+      ])
       setCategories(data)
+      setSpecialServices(specs)
     } catch (e) {
       toast.error("Error al cargar las categorías")
     } finally {
@@ -80,6 +86,32 @@ export default function ChecklistSettingsPage() {
     setCategories(newCats)
   }
 
+  // --- SPECIAL SERVICES HANDLERS ---
+  const handleAddSpecialService = () => {
+    setSpecialServices([...specialServices, {
+      id: Date.now().toString(),
+      name: "Nuevo Servicio",
+      categoryName: "",
+      askCategory: true
+    }])
+  }
+
+  const handleDeleteSpecialService = async (index: number) => {
+    const ss = specialServices[index]
+    if (ss.id && ss.id.length > 5 && !ss.id.startsWith('new')) {
+       try { await deleteSpecialService(ss.id); } catch(e) {}
+    }
+    const newList = [...specialServices]
+    newList.splice(index, 1)
+    setSpecialServices(newList)
+  }
+
+  const handleUpdateSpecialService = (index: number, field: keyof SpecialService, value: any) => {
+    const newList = [...specialServices]
+    newList[index] = { ...newList[index], [field]: value }
+    setSpecialServices(newList)
+  }
+
   const handleSaveAll = async () => {
     setSaving(true)
     try {
@@ -88,7 +120,10 @@ export default function ChecklistSettingsPage() {
       for (const cat of categories) {
         await saveChecklistCategory(cat)
       }
-      toast.success("Plantilla de revisión guardada exitosamente")
+      for (const ss of specialServices) {
+        await saveSpecialService(ss)
+      }
+      toast.success("Configuración guardada exitosamente")
       await loadData()
     } catch (error) {
       toast.error("Error al guardar la plantilla")
@@ -182,6 +217,81 @@ export default function ChecklistSettingsPage() {
               ))}
             </div>
           )}
+
+          <div className="pt-8 mb-4 border-t border-slate-200 dark:border-slate-800">
+             <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-lg font-bold text-blue-800 dark:text-blue-400">Panel de Servicios Especiales</h2>
+                  <p className="text-sm text-muted-foreground">Configura servicios recomendados que el técnico sugerirá aparte de la inspección.</p>
+                </div>
+                <Button variant="outline" className="border-blue-200 text-blue-600 hover:bg-blue-50" onClick={handleAddSpecialService}>
+                  <Plus className="h-4 w-4 mr-2" /> Nuevo Servicio
+                </Button>
+             </div>
+
+             {specialServices.length === 0 ? (
+                <div className="text-center py-8 bg-blue-50/50 rounded-xl border border-dashed border-blue-200">
+                   <p className="text-muted-foreground">No hay servicios especiales configurados.</p>
+                </div>
+             ) : (
+                <div className="grid gap-4">
+                  {specialServices.map((ss, idx) => (
+                    <Card key={idx} className="shadow-none border-blue-100 dark:border-blue-900">
+                       <div className="p-4 flex flex-col md:flex-row items-start md:items-center gap-4">
+                          <div className="flex-1 space-y-2 w-full">
+                             <Label className="text-xs font-bold text-blue-800">Nombre del Servicio Especial</Label>
+                             <Input 
+                               value={ss.name}
+                               onChange={(e) => handleUpdateSpecialService(idx, 'name', e.target.value)}
+                               placeholder="Ej. Sincronización, Mantenimiento Frenos..."
+                             />
+                          </div>
+                          
+                          <div className="flex-1 space-y-2 w-full">
+                             <div className="flex items-center justify-between">
+                               <Label className="text-xs font-bold text-slate-700">Categoría Asociada</Label>
+                               <div className="flex items-center space-x-2">
+                                 <Checkbox 
+                                   id={`ask-${idx}`}
+                                   checked={ss.askCategory}
+                                   onCheckedChange={(c) => handleUpdateSpecialService(idx, 'askCategory', !!c)}
+                                 />
+                                 <Label htmlFor={`ask-${idx}`} className="text-[10px] cursor-pointer">Preguntar al Técnico</Label>
+                               </div>
+                             </div>
+                             
+                             <Select 
+                               value={ss.askCategory ? "ASK" : (ss.categoryName || "none")}
+                               onValueChange={(val) => {
+                                 if (val === "ASK") {
+                                   handleUpdateSpecialService(idx, 'askCategory', true)
+                                 } else {
+                                   handleUpdateSpecialService(idx, 'askCategory', false)
+                                   handleUpdateSpecialService(idx, 'categoryName', val)
+                                 }
+                               }}
+                             >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Seleccionar comportamiento..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="ASK" className="font-bold text-blue-600">PREGUNTAR AL TÉCNICO EN EL MOMENTO</SelectItem>
+                                  {categories.map(c => (
+                                    <SelectItem key={c.id} value={c.title}>Automático a: {c.title}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                             </Select>
+                          </div>
+
+                          <Button variant="destructive" size="icon" className="md:mt-6" onClick={() => handleDeleteSpecialService(idx)}>
+                             <Trash2 className="h-4 w-4" />
+                          </Button>
+                       </div>
+                    </Card>
+                  ))}
+                </div>
+             )}
+          </div>
         </div>
       </DashboardLayout>
     </ProtectedRoute>
