@@ -10,7 +10,8 @@ import { getServiceOrderById, getPreventiveReviewByOrderId, updateQuotation, upd
 import type { ServiceOrder, PreventiveReview, Quotation, QuotationItem, Vehicle, Client } from "@/lib/types"
 import { toast } from "sonner"
 import { useParams, useRouter } from "next/navigation"
-import { CheckCircle, AlertTriangle, FileText, Plus, XCircle, Wrench, Package, PackagePlus, Trash2, User, Car, Phone, Mail, CreditCard, Calendar } from "lucide-react"
+import { CheckCircle, AlertTriangle, FileText, Plus, XCircle, Wrench, Package, PackagePlus, Trash2, User, Car, Phone, Mail, CreditCard, Calendar, ArrowLeft } from "lucide-react"
+import Link from "next/link"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { CurrencyInput } from "@/components/currency-input"
@@ -221,6 +222,11 @@ export default function AdminPreventiveReview() {
     <ProtectedRoute allowedRoles={["admin"]}>
       <DashboardLayout title="Valorizar Revisión Preventiva">
         <div className="max-w-5xl mx-auto pb-20 space-y-6">
+          <div>
+            <Link href={`/admin/orders/${id}`} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors mb-2">
+              <ArrowLeft className="h-4 w-4" /> Volver a Detalles de Orden
+            </Link>
+          </div>
           <div className="bg-white p-6 rounded-xl border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
                <h1 className="text-xl font-bold flex items-center gap-2">Orden #{order?.orderNumber || order?.id.slice(0,8)}</h1>

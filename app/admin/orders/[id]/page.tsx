@@ -47,6 +47,7 @@ import type { ServiceOrder, Vehicle, User as UserType, Client, StateHistory, Quo
 import { generateOrderSummaryHTML } from "@/lib/order-summary-html"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/lib/auth-context"
+import { toast } from "sonner"
 
 export default function AdminOrderDetailPage() {
   const params = useParams()
