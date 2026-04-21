@@ -6,7 +6,8 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Plus, Trash2, Save, Tags } from "lucide-react"
+import { Plus, Trash2, Save, Tags, ArrowLeft } from "lucide-react"
+import Link from "next/link"
 import { getChecklistCategories, saveChecklistCategory, deleteChecklistCategory, getSpecialServices, saveSpecialService, deleteSpecialService } from "@/lib/db"
 import type { ChecklistCategory, SpecialService } from "@/lib/types"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -146,6 +147,11 @@ export default function ChecklistSettingsPage() {
     <ProtectedRoute allowedRoles={["admin"]}>
       <DashboardLayout title="Plantilla de Revisión General Preventiva">
         <div className="space-y-6 max-w-4xl mx-auto">
+          <div>
+            <Link href="/admin" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors">
+              <ArrowLeft className="h-4 w-4" /> Volver al Panel de Administración
+            </Link>
+          </div>
           <div className="flex justify-between items-center bg-card p-4 rounded-xl border shadow-sm">
             <div>
               <h2 className="text-lg font-bold">Gestión de Categorías e Ítems</h2>
