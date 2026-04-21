@@ -127,13 +127,18 @@ if (!fs.existsSync(dbPath)) {
 
   // Ensure new collections exist
   let collectionsUpdated = false;
-  if (!dbData['checklist-categories'] || dbData['checklist-categories'].length === 0) {
+  const hasOldCategories = dbData['checklist-categories'] && dbData['checklist-categories'].length > 0 && dbData['checklist-categories'].some(c => c.title === "Frenos" && c.items.includes("Campanas"));
+  if (!dbData['checklist-categories'] || dbData['checklist-categories'].length === 0 || hasOldCategories) {
     dbData['checklist-categories'] = [
-      { id: "1", title: "Frenos", isEscaner: false, items: ["Pastillas", "Discos", "Líquido", "Campanas"] },
-      { id: "2", title: "Dirección / Suspensión", isEscaner: false, items: ["Amortiguadores", "Rótulas", "Terminales", "Tijeras"] },
-      { id: "3", title: "Motor / Diagnóstico", isEscaner: true, items: ["Batería", "Filtro Aire", "Bujías"] },
-      { id: "4", title: "Eléctrico e Iluminación", isEscaner: false, items: ["Farolas frontales", "Stops", "Direccionales"] },
-      { id: "5", title: "Fluidos", isEscaner: false, items: ["Transmisión", "Refrigerante", "Aceite Dirección"] }
+      { id: "1", title: "Suspensión y Rótulas", isEscaner: false, items: ["Amortiguadores Del.", "Amortiguadores Tras.", "Bujes de Tijera", "Tijeras", "Lágrimas", "Soporte de Amortiguadores", "Bujes Barra Estabilizadora", "Soportes de Motor", "Rótula Del. Der.", "Rótula Del. Izq.", "Rótula Tras. Der.", "Rótula Tras. Izq."] },
+      { id: "2", title: "Frenos", isEscaner: false, items: ["Pastillas Del.", "Pastillas Tras.", "Discos Del.", "Discos Tras.", "Líquido de Frenos", "Freno de Mano", "Mangueras de Freno", "Bomba de Freno"] },
+      { id: "3", title: "Dirección", isEscaner: false, items: ["Caja de Dirección", "Terminales", "Axiales", "Bomba de Dirección", "Aceite Hidráulico", "Holgura Volante"] },
+      { id: "4", title: "Transmisión", isEscaner: false, items: ["Puntas", "Cardán", "Embrague", "Fugas Caja de Cambios"] },
+      { id: "5", title: "Fugas", isEscaner: false, items: ["Fuga Aceite Motor", "Fuga Transmisión", "Fuga Dirección", "Fuga Refrigerante", "Fuga Combustible", "Fuga Frenos"] },
+      { id: "6", title: "Escáner / Electrónico", isEscaner: true, items: ["Batería", "Alternador"] },
+      { id: "7", title: "Chequeo Visual Motor", isEscaner: false, items: ["Nivel Aceite Motor", "Correa Distribución", "Bandas Accesorios", "Filtro de Aire", "Cableado Visible"] },
+      { id: "8", title: "Refrigeración", isEscaner: false, items: ["Nivel Refrigerante", "Tapa Radiador", "Mangueras Radiador", "Termostato", "Ventilador / Clutch", "Radiador (fugas/daño)"] },
+      { id: "9", title: "Visual Exterior / Luces", isEscaner: false, items: ["Luces Delanteras", "Luces Traseras", "Direccionales", "Luz de Freno", "Llantas (desgaste)", "Cristales / Limpiadores"] }
     ];
     collectionsUpdated = true;
   }

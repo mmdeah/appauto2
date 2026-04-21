@@ -10,7 +10,7 @@ import { getServiceOrderById, getPreventiveReviewByOrderId, updateQuotation, upd
 import type { ServiceOrder, PreventiveReview, Quotation, QuotationItem, Vehicle, Client } from "@/lib/types"
 import { toast } from "sonner"
 import { useParams, useRouter } from "next/navigation"
-import { CheckCircle, AlertTriangle, FileText, Plus, XCircle, Wrench, Package, PackagePlus, Trash2, User, Car } from "lucide-react"
+import { CheckCircle, AlertTriangle, FileText, Plus, XCircle, Wrench, Package, PackagePlus, Trash2, User, Car, Phone, Mail, CreditCard, Calendar } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { CurrencyInput } from "@/components/currency-input"
@@ -224,9 +224,28 @@ export default function AdminPreventiveReview() {
           <div className="bg-white p-6 rounded-xl border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
                <h1 className="text-xl font-bold flex items-center gap-2">Orden #{order?.orderNumber || order?.id.slice(0,8)}</h1>
-               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 mt-2 text-sm text-slate-600">
-                  <span className="flex items-center gap-1.5"><Car className="h-4 w-4 text-slate-400" /> {vehicle ? `${vehicle.brand} ${vehicle.model} - ${vehicle.licensePlate}` : "Cargando..."}</span>
-                  <span className="flex items-center gap-1.5"><User className="h-4 w-4 text-slate-400" /> {client ? client.name : "Cargando..."}</span>
+               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-700 bg-slate-50 p-4 rounded-lg border">
+                  <div className="space-y-2">
+                     <p className="font-semibold text-slate-900 flex items-center gap-1.5 border-b pb-1 mb-2"><Car className="h-4 w-4 text-blue-600" /> Datos del Vehículo</p>
+                     {vehicle ? (
+                        <>
+                          <p><span className="text-slate-500 mr-2">Placa:</span> <strong className="uppercase">{vehicle.licensePlate}</strong></p>
+                          <p><span className="text-slate-500 mr-2">Marca/Modelo:</span> {vehicle.brand} {vehicle.model}</p>
+                          <p className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5 text-slate-400"/> <span className="text-slate-500 mr-1">Año:</span> {vehicle.year}</p>
+                        </>
+                     ) : <p className="text-xs italic text-slate-400">Cargando vehículo...</p>}
+                  </div>
+                  <div className="space-y-2">
+                     <p className="font-semibold text-slate-900 flex items-center gap-1.5 border-b pb-1 mb-2"><User className="h-4 w-4 text-green-600" /> Datos del Cliente</p>
+                     {client ? (
+                        <>
+                          <p><span className="text-slate-500 mr-2">Nombre:</span> <strong>{client.name}</strong></p>
+                          {client.idNumber && <p className="flex items-center gap-1"><CreditCard className="h-3.5 w-3.5 text-slate-400"/> <span className="text-slate-500 mr-1">CC/ID:</span> {client.idNumber}</p>}
+                          {client.phone && <p className="flex items-center gap-1"><Phone className="h-3.5 w-3.5 text-slate-400"/> <span className="text-slate-500 mr-1">Tel:</span> {client.phone}</p>}
+                          {client.email && <p className="flex items-center gap-1"><Mail className="h-3.5 w-3.5 text-slate-400"/> <span className="text-slate-500 mr-1">Email:</span> {client.email}</p>}
+                        </>
+                     ) : <p className="text-xs italic text-slate-400">Cargando cliente...</p>}
+                  </div>
                </div>
                <p className="text-slate-500 text-xs mt-3 bg-blue-50 text-blue-800 p-2 rounded inline-block">El técnico ha enviado el reporte preventivo. Puedes ajustar la mano de obra sugerida e ingresar los costos de los repuestos.</p>
             </div>

@@ -37,11 +37,12 @@ import {
   updateQuotation,
   createRevenue,
   updateClient,
-  getPreventiveReviewByOrderId
+  getPreventiveReviewByOrderId,
+  getChecklistCategories
 } from "@/lib/db"
 import { generateInvoiceHTML, printInvoice, generateQualityControlHTML } from "@/lib/invoice-generator"
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, generateId, formatCurrency, getNextState, getPreviousState } from "@/lib/utils-service"
-import type { ServiceOrder, Vehicle, User as UserType, Client, StateHistory, QuotationItem, ServiceState, PreventiveReview } from "@/lib/types"
+import type { ServiceOrder, Vehicle, User as UserType, Client, StateHistory, QuotationItem, ServiceState, PreventiveReview, ChecklistCategory } from "@/lib/types"
 import { generateOrderSummaryHTML } from "@/lib/order-summary-html"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/lib/auth-context"
@@ -59,7 +60,8 @@ export default function AdminOrderDetailPage() {
   const [review, setReview] = useState<PreventiveReview | null>(null)
 
   const [quotationItems, setQuotationItems] = useState<QuotationItem[]>([])
-  const [newItem, setNewItem] = useState({ description: "", quantity: 1, unitPrice: 0 })
+  const [checkCategories, setCheckCategories] = useState<ChecklistCategory[]>([])
+  const [newItem, setNewItem] = useState({ category: "", description: "", quantity: 1, unitPrice: 0 })
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState("")
 
@@ -102,13 +104,14 @@ export default function AdminOrderDetailPage() {
   const loadData = async () => {
     const orderId = params.id as string
     try {
-      const [orderData, vehicles, users, clients, historyData, reviewData] = await Promise.all([
+      const [orderData, vehicles, users, clients, historyData, reviewData, checkCategoriesData] = await Promise.all([
         getServiceOrderById(orderId),
         getVehicles(),
         getUsers(),
         getClients(),
         getStateHistoryByOrderId(orderId),
-        getPreventiveReviewByOrderId(orderId)
+        getPreventiveReviewByOrderId(orderId),
+        getChecklistCategories()
       ])
 
       if (!orderData) {
@@ -135,6 +138,7 @@ export default function AdminOrderDetailPage() {
       setAllTechnicians(users.filter((u) => u.role === "technician"))
       setHistory(historyData.sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime()))
       setReview(reviewData || null)
+      setCheckCategories(checkCategoriesData || [])
 
       if (orderData.quotation) {
         const globalIncludesTax = orderData.quotation.includesTax ?? true
@@ -1161,17 +1165,39 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                           <div className="space-y-3">
                             <Label className="text-base font-semibold">Agregar Nuevo Ítem</Label>
                             <div className="grid gap-3">
-                              <div>
-                                <Label htmlFor="description" className="text-sm">
-                                  Descripción
-                                </Label>
-                                <Input
-                                  id="description"
-                                  value={newItem.description}
-                                  onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                                  placeholder="Descripción del servicio o repuesto"
-                                  onKeyDown={(e) => e.key === "Enter" && addQuotationItem()}
-                                />
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                  <Label htmlFor="category" className="text-sm">
+                                    Categoría
+                                  </Label>
+                                  <Select
+                                    value={newItem.category}
+                                    onValueChange={(val) => setNewItem({ ...newItem, category: val })}
+                                  >
+                                    <SelectTrigger id="category" className="bg-white">
+                                      <SelectValue placeholder="Seleccione categoría..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {checkCategories.map(c => (
+                                        <SelectItem key={c.id} value={c.title}>{c.title}</SelectItem>
+                                      ))}
+                                      <SelectItem value="Generales">Generales / Otros</SelectItem>
+                                      <SelectItem value="Mano de Obra">Mano de Obra</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <Label htmlFor="description" className="text-sm">
+                                    Descripción
+                                  </Label>
+                                  <Input
+                                    id="description"
+                                    value={newItem.description}
+                                    onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+                                    placeholder="Descripción del servicio o repuesto"
+                                    onKeyDown={(e) => e.key === "Enter" && addQuotationItem()}
+                                  />
+                                </div>
                               </div>
                               <div className="grid grid-cols-2 gap-3">
                                 <div>

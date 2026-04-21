@@ -480,6 +480,12 @@ export default function AdminPage() {
                 Reportes
               </Link>
             </Button>
+            <Button variant="outline" asChild size="lg" className="shadow-sm">
+              <Link href="/admin/settings/checklist">
+                <ListChecks className="h-4 w-4 mr-2" />
+                Configurar Revisión
+              </Link>
+            </Button>
           </div>
 
           {/* Recent Service Orders */}
