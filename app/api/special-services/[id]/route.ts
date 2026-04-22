@@ -2,7 +2,7 @@ const API_BASE_URL = process.env.JSON_SERVER_URL || 'http://localhost:3001';
 
 export async function GET(request: Request, context: any) {
   try {
-    const { params } = context;
+    const params = await context.params;
     const id = params?.id;
     if (!id) throw new Error('ID no proporcionado');
 
@@ -18,7 +18,7 @@ export async function GET(request: Request, context: any) {
 
 export async function PUT(request: Request, context: any) {
   try {
-    const { params } = context;
+    const params = await context.params;
     const id = params?.id;
     if (!id) throw new Error('ID no proporcionado');
 
@@ -39,7 +39,7 @@ export async function PUT(request: Request, context: any) {
 
 export async function DELETE(request: Request, context: any) {
   try {
-    const { params } = context;
+    const params = await context.params;
     const id = params?.id;
     if (!id) throw new Error('ID no proporcionado');
 

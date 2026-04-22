@@ -1,11 +1,12 @@
 const API_BASE_URL = process.env.JSON_SERVER_URL || 'http://localhost:3001';
 
-export async function PUT(request: Request, context: any) {
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> | { id: string } }
+) {
   try {
-    const { params } = context;
-    // En Next.js 15+ "params" debe tratarse como promesa, o esperar una asincronía. 
-    // Usaremos el id directamente si está disponible.
-    const id = params?.id;
+    const resolvedParams = await params;
+    const id = resolvedParams.id;
     if (!id) throw new Error('ID no proporcionado');
 
     const body = await request.json();
@@ -24,16 +25,19 @@ export async function PUT(request: Request, context: any) {
   }
 }
 
-export async function DELETE(request: Request, context: any) {
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> | { id: string } }
+) {
   try {
-    const { params } = context;
-    const id = params?.id;
+    const resolvedParams = await params;
+    const id = resolvedParams.id;
     if (!id) throw new Error('ID no proporcionado');
 
     const response = await fetch(`${API_BASE_URL}/api/checklist-categories/${id}`, {
       method: 'DELETE'
     });
-    if (!response.ok) throw new Error('Error al eliminar');
+    if (!response.ok) throw Error('Error al eliminar');
     return Response.json({ success: true });
   } catch (error) {
     console.error('Error deleting:', error);

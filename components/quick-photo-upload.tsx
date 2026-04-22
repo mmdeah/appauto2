@@ -49,11 +49,11 @@ export function QuickPhotoUpload({
 
   const filteredVehicles = vehicles.filter((v) => {
     const q = search.toLowerCase()
-    return (
-      v.licensePlate.toLowerCase().includes(q) ||
-      v.brand.toLowerCase().includes(q) ||
-      v.model.toLowerCase().includes(q)
-    )
+    const matchesSearch = v.licensePlate.toLowerCase().includes(q) ||
+                          v.brand.toLowerCase().includes(q) ||
+                          v.model.toLowerCase().includes(q)
+    const hasActiveOrder = orders.some(o => o.vehicleId === v.id && o.state !== "delivered")
+    return matchesSearch && hasActiveOrder
   }).slice(0, 8)
 
   const handleConfirm = useCallback(async () => {
@@ -148,33 +148,27 @@ export function QuickPhotoUpload({
               {/* Vehicle list */}
               <div className="max-h-52 overflow-y-auto space-y-1.5 pr-1">
                 {filteredVehicles.length === 0 && (
-                  <p className="text-center text-slate-400 text-sm py-4">Sin resultados</p>
+                  <p className="text-center text-slate-400 text-sm py-8">
+                    {search ? "No se encontraron vehículos con órdenes activas" : "No hay vehículos con órdenes activas actualmente"}
+                  </p>
                 )}
                 {filteredVehicles.map((v) => {
-                  const hasActiveOrder = orders.some(
-                    (o) => o.vehicleId === v.id && o.state !== "delivered"
-                  )
                   const isSelected = selectedVehicle?.id === v.id
                   return (
                     <button
                       key={v.id}
-                      disabled={!hasActiveOrder || step === "uploading"}
+                      disabled={step === "uploading"}
                       onClick={() => setSelectedVehicle(v)}
                       className={`w-full text-left flex items-center justify-between px-3 py-2 rounded-lg border text-sm transition-all
                         ${isSelected
                           ? "border-blue-500 bg-blue-50 text-blue-800"
-                          : hasActiveOrder
-                            ? "border-slate-200 hover:border-blue-300 hover:bg-slate-50"
-                            : "border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed"
+                          : "border-slate-200 hover:border-blue-300 hover:bg-slate-50"
                         }`}
                     >
                       <span>
                         <span className="font-semibold">{v.licensePlate}</span>
                         <span className="ml-2 text-slate-500">{v.brand} {v.model}</span>
                       </span>
-                      {!hasActiveOrder && (
-                        <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded">Sin orden activa</span>
-                      )}
                       {isSelected && <CheckCircle2 className="h-4 w-4 text-blue-500 shrink-0" />}
                     </button>
                   )

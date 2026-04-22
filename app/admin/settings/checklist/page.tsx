@@ -20,6 +20,7 @@ export default function ChecklistSettingsPage() {
   const [specialServices, setSpecialServices] = useState<SpecialService[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [showSavedMsg, setShowSavedMsg] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -125,6 +126,8 @@ export default function ChecklistSettingsPage() {
         await saveSpecialService(ss)
       }
       toast.success("Configuración guardada exitosamente")
+      setShowSavedMsg(true)
+      setTimeout(() => setShowSavedMsg(false), 3000)
       await loadData()
     } catch (error) {
       toast.error("Error al guardar la plantilla")
@@ -161,9 +164,18 @@ export default function ChecklistSettingsPage() {
               <Button variant="outline" onClick={handleAddCategory}>
                 <Plus className="h-4 w-4 mr-2" /> Nueva Categoría
               </Button>
-              <Button onClick={handleSaveAll} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white">
-                <Save className="h-4 w-4 mr-2" /> {saving ? "Guardando..." : "Guardar Cambios"}
+              <Button onClick={handleSaveAll} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white min-w-[150px]">
+                {saving ? (
+                   <><span className="animate-spin mr-2">◌</span> Guardando...</>
+                ) : (
+                   <><Save className="h-4 w-4 mr-2" /> Guardar Cambios</>
+                )}
               </Button>
+              {showSavedMsg && (
+                <span className="absolute -top-6 right-0 text-xs font-medium text-green-600 animate-in fade-in slide-in-from-bottom-1">
+                  ✓ ¡Cambios guardados!
+                </span>
+              )}
             </div>
           </div>
 

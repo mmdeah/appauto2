@@ -460,18 +460,21 @@ export async function getChecklistCategories(): Promise<ChecklistCategory[]> {
 }
 
 export async function saveChecklistCategory(category: Partial<ChecklistCategory>): Promise<ChecklistCategory> {
-  if (category.id) {
-    return apiRequest(`/checklist-categories/${category.id}`, {
-      method: 'PUT',
-      body: JSON.stringify(category),
-    })
-  } else {
+  const isNew = !category.id || category.id.startsWith('new-')
+  
+  if (isNew) {
+    const { id, ...data } = category
     return apiRequest('/checklist-categories', {
       method: 'POST',
       body: JSON.stringify({
-        ...category,
+        ...data,
         id: Date.now().toString(),
       }),
+    })
+  } else {
+    return apiRequest(`/checklist-categories/${category.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(category),
     })
   }
 }
@@ -534,18 +537,21 @@ export async function getSpecialServices(): Promise<SpecialService[]> {
 }
 
 export async function saveSpecialService(service: Partial<SpecialService>): Promise<SpecialService> {
-  if (service.id) {
-    return apiRequest(`/special-services/${service.id}`, {
-      method: 'PUT',
-      body: JSON.stringify(service),
-    })
-  } else {
+  const isNew = !service.id || service.id.startsWith('new-')
+
+  if (isNew) {
+    const { id, ...data } = service
     return apiRequest('/special-services', {
       method: 'POST',
       body: JSON.stringify({
-        ...service,
+        ...data,
         id: Date.now().toString(),
       }),
+    })
+  } else {
+    return apiRequest(`/special-services/${service.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(service),
     })
   }
 }
