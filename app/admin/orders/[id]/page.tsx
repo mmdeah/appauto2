@@ -270,6 +270,28 @@ export default function AdminOrderDetailPage() {
 
     try {
       const selectedItems = quotationItems.filter((item) => selectedItemIds.has(item.id))
+      const nonSelectedItems = quotationItems.filter((item) => !selectedItemIds.has(item.id))
+
+      // Ask if admin wants to delete non-selected items
+      let deleteRest = false
+      if (nonSelectedItems.length > 0) {
+        deleteRest = window.confirm(
+          `¿Deseas eliminar los ${nonSelectedItems.length} ítem(s) NO seleccionados de la cotización?\n\nSolo quedarán los ${selectedItems.length} ítem(s) que seleccionaste.`
+        )
+      }
+
+      if (deleteRest) {
+        // Update quotation to only keep selected items
+        const subtotal = selectedItems.reduce((acc, i) => acc + i.total, 0)
+        const tax = selectedItems.reduce((acc, i) => acc + ((i.includesTax !== false) ? i.total * 0.19 : 0), 0)
+        await updateQuotation(order.id, {
+          ...order.quotation!,
+          items: selectedItems,
+          subtotal,
+          tax,
+          total: subtotal + tax
+        })
+      }
 
       const newServices = selectedItems.map((item) => ({
         id: generateId(),
@@ -284,7 +306,7 @@ export default function AdminOrderDetailPage() {
         services: updatedServices,
       })
 
-      setMessage(`${selectedItems.length} ítem(s) agregado(s) a Servicios Programados`)
+      setMessage(`${selectedItems.length} ítem(s) agregado(s) a Servicios Programados${deleteRest ? ` y ${nonSelectedItems.length} eliminado(s) de la cotización` : ''}`)
       setSelectedItemIds(new Set())
       await loadData()
 
@@ -679,37 +701,38 @@ TOTAL: ${formatCurrency(order.quotation.total)}
     let messageText = `Hola ${client.name}, te enviamos el diagnóstico y la cotización de tu vehículo (${vehicle?.brand} ${vehicle?.licensePlate}):\n\n`
     
     if (review) {
-        messageText += `*REPORTE DIAGNÓSTICO DEL VEHÍCULO:*\n`
+        messageText += `*REPORTE DIAGNÓSTICO DEL VEHÍCULO:*\n\n`
         review.categories.forEach(cat => {
-           let catStatus = "[En Buen Estado]"
            const fails = cat.items.filter(i => i.status !== 'ok' && i.status !== null)
+           if (cat.items.every(i => i.status === null)) return // Skip if completely unreviewed
            
-           if (fails.some(i => i.status === 'urgent')) catStatus = "[Requiere Atención Urgente]"
-           else if (fails.length > 0) catStatus = "[Revisión Sugerida]"
-           else if (cat.items.every(i => i.status === null)) return; // Skip if completely empty/unreviewed
-           
-           messageText += `*${cat.title}:* ${catStatus}\n`
            if (fails.length > 0) {
-              fails.forEach(fail => {
-                const priorityPrefix = fail.status === 'urgent' ? 'Urgente:' : 'Atención:'
-                messageText += `  - ${priorityPrefix} ${fail.name}\n`
-              })
+             // Category has issues - show on its own line then list items
+             messageText += `*${cat.title}:*\n`
+             fails.forEach(fail => {
+               const priorityPrefix = fail.status === 'urgent' ? 'Urgente:' : 'Atención:'
+               messageText += `  - ${priorityPrefix} ${fail.name}\n`
+             })
+             messageText += `\n`
+           } else {
+             // Category is fine - show inline with Ok
+             messageText += `*${cat.title}:* Ok\n`
            }
         })
         if (review.generalObservations && review.generalObservations.trim() !== '') {
-            messageText += `\n*Observaciones Generales:*\n${review.generalObservations}\n`
+            messageText += `\n*Observaciones:*\n${review.generalObservations}\n`
         }
         messageText += `\n`
     }
 
-    messageText += `*COTIZACIÓN FINAL - ORDEN #${order.orderNumber || order.id.slice(0, 8)}*\n\n`
+    messageText += `*COTIZACIÓN SERVICIOS*\n\n`
 
     const addGroupToMsg = (items: typeof order.quotation.items, catName: string) => {
         let text = catName ? `*${catName.toUpperCase()}*\n` : ""
         let catTotal = 0
         items.forEach(item => {
             if (item.unitPrice === 0 && item.description.includes("(PENDIENTE")) {
-                text += `- ${item.quantity}x ${item.description}: Pendiente por cotizar ⏳\n`
+                text += `- ${item.quantity}x ${item.description}: Pendiente por cotizar\n`
             } else {
                 const rowTotal = item.total + ((item.includesTax !== false) ? item.total * 0.19 : 0)
                 catTotal += rowTotal
@@ -717,7 +740,7 @@ TOTAL: ${formatCurrency(order.quotation.total)}
             }
         })
         if (catName) {
-           text += `_Subtotal ${catName}: ${formatCurrency(catTotal)}_\n\n`
+           text += `_Subtotal: ${formatCurrency(catTotal)}_\n\n`
         } else { text += "\n" }
         return text
     }
@@ -736,6 +759,7 @@ TOTAL: ${formatCurrency(order.quotation.total)}
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(messageText)}`
     window.open(url, '_blank')
   }
+
 
   const handleStateAdvance = async () => {
     if (!order || !user) return

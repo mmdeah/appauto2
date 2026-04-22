@@ -242,10 +242,28 @@ export default function AdminPreventiveReview() {
         })
       })
 
+      // Auto-add "Revisión y Diagnóstico Avanzado" if any scanner DTC codes found
+      const dtcCategories = review.categories.filter(cat => cat.isEscaner && cat.dtcCodes && cat.dtcCodes.length > 0)
+      if (dtcCategories.length > 0) {
+        const alreadyHasRevAvanzada = qItems.some(qi => qi.description.toLowerCase().includes('revisión') && qi.description.toLowerCase().includes('avanzad'))
+        if (!alreadyHasRevAvanzada) {
+          const dtcCodes = dtcCategories.flatMap(c => c.dtcCodes!.map(d => d.code)).join(', ')
+          qItems.push({
+            id: `dtc-revision-${Date.now()}`,
+            category: dtcCategories[0].title,
+            description: `Revisión y Diagnóstico Avanzado (Códigos: ${dtcCodes}) - PENDIENTE ADMIN`,
+            quantity: 1,
+            unitPrice: 0,
+            total: 0,
+            includesTax: false
+          })
+        }
+      }
+
       const newQuotation: Quotation = {
         id: order.quotation?.id || `quot-${Date.now()}`,
-        items: [...(order.quotation?.items || []).filter(i => !i.category), ...qItems], // Keep NON-category items just in case
-        subtotal: order.quotation?.subtotal || total, // This would be recalculated correctly on backend/real app, doing simple sum
+        items: [...(order.quotation?.items || []).filter(i => !i.category), ...qItems],
+        subtotal: total,
         tax: 0,
         total: (order.quotation?.items || []).filter(i => !i.category).reduce((acc, i) => acc + i.total, 0) + total,
         includesTax: false,
