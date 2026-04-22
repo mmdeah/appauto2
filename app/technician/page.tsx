@@ -9,17 +9,19 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Clock, CheckCircle2, Wrench, ListChecks, FileText, Search, AlertCircle, XCircle, User, Calendar, CheckCircle } from 'lucide-react';
-import { getServiceOrdersByTechnicianId, getVehicles, getUsers } from '@/lib/db';
+import { getServiceOrdersByTechnicianId, getVehicles, getUsers, getServiceOrders } from '@/lib/db';
 import { getClients } from '@/lib/db';
 import type { ServiceState, Client } from '@/lib/types';
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS } from '@/lib/utils-service';
 import type { ServiceOrder, Vehicle } from '@/lib/types';
 import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
+import { QuickPhotoUpload } from '@/components/quick-photo-upload';
 
 export default function TechnicianPage() {
   const { user } = useAuth();
   const [assignedOrders, setAssignedOrders] = useState<ServiceOrder[]>([]);
+  const [allOrders, setAllOrders] = useState<ServiceOrder[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -33,13 +35,15 @@ export default function TechnicianPage() {
   const loadData = async () => {
     if (!user) return;
     
-    const [myOrders, allVehicles, allClients] = await Promise.all([
+    const [myOrders, allVehicles, allClients, allServiceOrders] = await Promise.all([
       getServiceOrdersByTechnicianId(user.id),
       getVehicles(),
-      getClients()
+      getClients(),
+      getServiceOrders()
     ]);
     
     setAssignedOrders(myOrders.filter(o => o.state !== 'delivered'));
+    setAllOrders(allServiceOrders);
     setVehicles(allVehicles);
     setClients(allClients);
   };
@@ -200,6 +204,12 @@ export default function TechnicianPage() {
                     Gestione las órdenes de servicio asignadas
                   </CardDescription>
                 </div>
+                <QuickPhotoUpload
+                  vehicles={vehicles || []}
+                  orders={allOrders}
+                  photoType="service"
+                  onUploaded={loadData}
+                />
               </div>
             </CardHeader>
             <CardContent>

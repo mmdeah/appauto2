@@ -272,21 +272,28 @@ export default function AdminOrderDetailPage() {
       const selectedItems = quotationItems.filter((item) => selectedItemIds.has(item.id))
       const nonSelectedItems = quotationItems.filter((item) => !selectedItemIds.has(item.id))
 
-      // Ask if admin wants to delete non-selected items
+      // Only consider for deletion items that have NOT already been approved (are not in services)
+      const existingServiceDescriptions = new Set((order.services || []).map(s => s.description))
+      const deletableItems = nonSelectedItems.filter(i => !existingServiceDescriptions.has(i.description))
+
+      // Ask if admin wants to delete non-selected, non-approved items
       let deleteRest = false
-      if (nonSelectedItems.length > 0) {
+      if (deletableItems.length > 0) {
         deleteRest = window.confirm(
-          `¿Deseas eliminar los ${nonSelectedItems.length} ítem(s) NO seleccionados de la cotización?\n\nSolo quedarán los ${selectedItems.length} ítem(s) que seleccionaste.`
+          `¿Deseas eliminar los ${deletableItems.length} ítem(s) NO seleccionados de la cotización?\n\nSolo se eliminarán los que aún no han sido aprobados.`
         )
       }
 
       if (deleteRest) {
-        // Update quotation to only keep selected items
-        const subtotal = selectedItems.reduce((acc, i) => acc + i.total, 0)
-        const tax = selectedItems.reduce((acc, i) => acc + ((i.includesTax !== false) ? i.total * 0.19 : 0), 0)
+        // Keep selected items + already-approved non-selected items
+        const itemsToKeep = quotationItems.filter(
+          item => selectedItemIds.has(item.id) || existingServiceDescriptions.has(item.description)
+        )
+        const subtotal = itemsToKeep.reduce((acc, i) => acc + i.total, 0)
+        const tax = itemsToKeep.reduce((acc, i) => acc + ((i.includesTax !== false) ? i.total * 0.19 : 0), 0)
         await updateQuotation(order.id, {
           ...order.quotation!,
-          items: selectedItems,
+          items: itemsToKeep,
           subtotal,
           tax,
           total: subtotal + tax
@@ -306,14 +313,14 @@ export default function AdminOrderDetailPage() {
         services: updatedServices,
       })
 
-      setMessage(`${selectedItems.length} ítem(s) agregado(s) a Servicios Programados${deleteRest ? ` y ${nonSelectedItems.length} eliminado(s) de la cotización` : ''}`)
+      setMessage(`${selectedItems.length} ítem(s) aprobado(s)${deleteRest ? ` y ${deletableItems.length} pendiente(s) eliminado(s) de la cotización` : ''}`)
       setSelectedItemIds(new Set())
       await loadData()
 
       setTimeout(() => setMessage(""), 3000)
     } catch (error) {
       console.error("[v0] Error accepting items:", error)
-      setMessage("Error al agregar ítems")
+      setMessage("Error al aprobar ítems")
     }
   }
 
