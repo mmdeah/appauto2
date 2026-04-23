@@ -278,10 +278,12 @@ export default function TechnicianPage() {
                                       {SERVICE_STATE_LABELS[order.state]}
                                     </Badge>
                                   </div>
-                                  </div>
-                                  
-                                  {order.services && order.services.length > 0 && (
-                                    <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                                    <p className="text-sm text-muted-foreground line-clamp-2">
+                                      {order.description}
+                                    </p>
+
+                                    {order.services && order.services.length > 0 && (
+                                      <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                                       <p className="text-[11px] font-bold text-slate-400 uppercase mb-1">Servicios Programados:</p>
                                       <div className="flex flex-wrap gap-1.5 mb-3">
                                         {order.services.map((s) => (
