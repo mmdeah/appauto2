@@ -206,6 +206,11 @@ export default function ReportsPage() {
                 <div className="space-y-4">
                   {/* Revisiones Preventivas */}
                   {preventiveReviews
+                    .filter(pr => {
+                        const order = orders.find((o) => o.id === pr.serviceOrderId)
+                        const vehicle = vehicles.find((v) => v.id === order?.vehicleId)
+                        return order && vehicle // Solo mostrar si la orden y el vehiculo existen
+                    })
                     .sort((a, b) => new Date(b.createdAt || Date.now()).getTime() - new Date(a.createdAt || Date.now()).getTime())
                     .map((pr) => {
                       const order = orders.find((o) => o.id === pr.serviceOrderId)

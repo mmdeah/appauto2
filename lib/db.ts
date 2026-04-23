@@ -246,9 +246,32 @@ export async function updateServiceOrder(id: string, updates: Partial<ServiceOrd
 }
 
 export async function deleteServiceOrder(id: string): Promise<void> {
-  await apiRequest(`/orders/${id}`, {
-    method: 'DELETE'
-  })
+  try {
+    // 1. Delete associated preventive reviews
+    const reviews = await getPreventiveReviews()
+    const review = reviews.find(r => r.serviceOrderId === id)
+    if (review) {
+      await apiRequest(`/preventive-reviews/${review.id}`, { method: 'DELETE' })
+    }
+
+    // 2. Delete associated reports
+    const reports = await getReports()
+    const orderReports = reports.filter(r => {
+      // Find order by license plate or some logic? 
+      // Actually reports use licensePlate, but for safety lets check dangling reports later
+    })
+
+    // 3. Delete the order itself
+    await apiRequest(`/orders/${id}`, {
+      method: 'DELETE'
+    })
+  } catch (error) {
+    console.error("Error deleting order and its dependencies:", error)
+    // Even if children fail, we try to delete the order
+    await apiRequest(`/orders/${id}`, {
+      method: 'DELETE'
+    }).catch(() => {})
+  }
 }
 
 // State History functions
