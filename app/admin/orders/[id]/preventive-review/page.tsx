@@ -478,7 +478,8 @@ export default function AdminPreventiveReview() {
                                )
                              })()}
                           </div>
-                        ))}
+                        )
+                      })}
 
                         {/* Additional Parts block */}
                         {adds.map((addPart, aIdx) => {

@@ -316,7 +316,11 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
                onClick={() => setShowMarkAllModal(true)}
             >
                <Check className="h-4 w-4 mr-1" /> Marcar Todo como OK
+            </Button>
+            <p className="text-[10px] text-slate-400">Nota: Puedes omitir (dejar en blanco) los campos que no revisaste o no aplican.</p>
+          </div>
        </div>
+
 
        {order && order.services && order.services.length > 0 && (
          <div className="px-4 mb-4">
