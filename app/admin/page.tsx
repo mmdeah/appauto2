@@ -498,7 +498,7 @@ Su vehículo se encuentra listo para el retiro.`
     if (whatsappOption === 'greeting') {
       message = "¡Hola! Buenos días, nos comunicamos de parte del Taller."
     } else if (whatsappOption === 'reception') {
-      message = `*REPORTE DE RECEPCIÓN*\n\nHola ${client.name}, le informamos que hemos recibido su vehículo ${vehicle?.brand} ${vehicle?.model} con placas ${vehicle?.licensePlate} en nuestro taller. Estaremos informándole sobre el proceso de diagnóstico pronto.`
+      message = `Hola ${client.name}, te contactamos desde Automotriz Online SD sobre tu orden de servicio en el Vehículo ${vehicle?.licensePlate}. Puedes seguir el estado de tu orden aquí: https://apponlinesd.up.railway.app/client`
     } else if (whatsappOption === 'quick-quote') {
       setIsSavingWhatsApp(true)
       try {
