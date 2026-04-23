@@ -216,7 +216,13 @@ export default function AdminOrderDetailPage() {
   }
 
   const saveQuotation = async () => {
-    if (!order || !user || quotationItems.length === 0) return
+    if (!order || !user || quotationItems.length === 0) {
+      if (quotationItems.length === 0 && order?.quotation?.items.length && order?.quotation?.items.length > 0) {
+         // Allow saving empty quotation if explicitly cleared
+      } else if (quotationItems.length === 0) {
+        return;
+      }
+    }
 
     setIsSaving(true)
     setMessage("")
@@ -243,6 +249,24 @@ export default function AdminOrderDetailPage() {
         includesTax: tax > 0,
         createdBy: user.id,
       })
+
+      // Sync services: if an item was removed from quotation, remove it from services too
+      if (order.services && order.services.length > 0) {
+        const currentQuoteDescriptions = new Set(quotationItems.map(i => i.description.toLowerCase().trim()));
+        const updatedServices = order.services.filter(s => {
+          // Si el servicio ya se completó, lo dejamos quieto (historial)
+          if (s.completed) return true;
+          
+          // Si el servicio no está en la nueva cotización, lo quitamos
+          // (Asumimos que si estaba antes es porque vino de la cotización)
+          const desc = s.description.toLowerCase().trim();
+          return currentQuoteDescriptions.has(desc);
+        });
+
+        if (updatedServices.length !== order.services.length) {
+          await updateServiceOrder(order.id, { services: updatedServices });
+        }
+      }
 
       setMessage("Cotización guardada correctamente")
       setIsQuoteDialogOpen(false)

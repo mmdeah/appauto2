@@ -27,8 +27,8 @@ export default function AdminPreventiveReview() {
   // State for Admin Inputs
   // isRepairable: admin marcó que la pieza puede repararse en vez de sustituirse
   // repairPrice: costo de la reparación (si aplica)
-  const [partPrices, setPartPrices] = useState<Record<string, { price: string, desc: string, isPending: boolean, isRepairable: boolean, repairPrice: string, repairPending: boolean }>>({})  
-  const [additionalParts, setAdditionalParts] = useState<{ category: string, description: string, price: string, isPending: boolean }[]>([])
+  const [partPrices, setPartPrices] = useState<Record<string, { price: string, quantity: string, desc: string, isPending: boolean, isRepairable: boolean, repairPrice: string, repairPending: boolean }>>({})  
+  const [additionalParts, setAdditionalParts] = useState<{ category: string, description: string, quantity: string, price: string, isPending: boolean }[]>([])
 
   // Price suggestions: map of itemName -> [{ desc, price }]
   const [priceSuggestions, setPriceSuggestions] = useState<Record<string, { desc: string, price: number }[]>>({})
@@ -95,6 +95,7 @@ export default function AdminPreventiveReview() {
             if (item.needsPart) {
               initialPrices[item.id] = {
                 price: item.partPrice ? item.partPrice.toString() : "",
+                quantity: "1",
                 desc: item.partDescription || `${item.name} (Repuesto)`,
                 isPending: false,
                 isRepairable: false,
@@ -107,7 +108,7 @@ export default function AdminPreventiveReview() {
         setPartPrices(initialPrices)
         
         if (savedReview.additionalAdminParts) {
-           setAdditionalParts(savedReview.additionalAdminParts.map(p => ({ ...p, price: p.price.toString(), isPending: false })))
+           setAdditionalParts(savedReview.additionalAdminParts.map(p => ({ ...p, quantity: "1", price: p.price.toString(), isPending: false })))
         }
       }
     } catch (e) {
@@ -146,7 +147,7 @@ export default function AdminPreventiveReview() {
   }
 
   const addAdditionalPart = (catTitle: string) => {
-    setAdditionalParts([...additionalParts, { category: catTitle, description: "", price: "", isPending: false }])
+    setAdditionalParts([...additionalParts, { category: catTitle, description: "", quantity: "1", price: "", isPending: false }])
   }
 
   const updateAdditionalPart = (index: number, field: 'description' | 'price' | 'isPending', value: any) => {
@@ -214,18 +215,19 @@ export default function AdminPreventiveReview() {
               }
             } else {
               const cost = (pAdmin?.price && !pAdmin.isPending) ? parseFloat(pAdmin.price) : 0
+              const qty = parseFloat(pAdmin?.quantity) || 1
               const desc = pAdmin?.isPending ? `${pAdmin.desc || item.name} (PENDIENTE)` : (pAdmin?.desc || `Repuesto: ${item.name}`)
               if (cost > 0 || pAdmin?.isPending) {
                 qItems.push({
                   id: `part-${item.id}`,
                   category: cat.title,
                   description: desc,
-                  quantity: 1,
+                  quantity: qty,
                   unitPrice: cost,
-                  total: cost,
+                  total: qty * cost,
                   includesTax: false
                 })
-                total += cost
+                total += (qty * cost)
               }
             }
           }
@@ -234,18 +236,19 @@ export default function AdminPreventiveReview() {
         // 3. Agregar repuestos adicionales de esta categoria
         additionalParts.filter(p => p.category === cat.title).forEach((p, idx) => {
            const cost = (p.price && !p.isPending) ? parseFloat(p.price) : 0
+           const qty = parseFloat(p.quantity) || 1
            const desc = p.isPending ? `${p.description} (PENDIENTE)` : p.description
            if ((cost > 0 || p.isPending) && p.description.trim() !== "") {
               qItems.push({
                 id: `add-part-${cat.title}-${idx}`,
                 category: cat.title,
                 description: p.description,
-                quantity: 1,
+                quantity: qty,
                 unitPrice: cost,
-                total: cost,
+                total: qty * cost,
                 includesTax: false
               })
-              total += cost
+              total += (qty * cost)
            }
         })
       })
@@ -450,7 +453,23 @@ export default function AdminPreventiveReview() {
                                          </div>
                                        </div>
                                        <Input placeholder="Descripción del repuesto..." className="h-7 text-xs bg-white" value={pa.desc} onChange={(e) => updatePartPrice(item.id, 'desc', e.target.value)} />
-                                       <CurrencyInput placeholder="0" disabled={pa.isPending} className={`h-7 text-xs font-semibold ${pa.isPending ? 'opacity-50' : 'bg-white'}`} value={pa.price ? parseFloat(pa.price) : 0} onChange={(val) => updatePartPrice(item.id, 'price', val.toString())} />
+                                        <div className="grid grid-cols-4 gap-2">
+                                          <div className="col-span-1">
+                                            <Label className="text-[10px] text-slate-400">Cant.</Label>
+                                            <Input 
+                                              type="number" 
+                                              className="h-7 text-xs bg-white" 
+                                              value={pa.quantity || "1"} 
+                                              onChange={(e) => updatePartPrice(item.id, 'quantity', e.target.value)} 
+                                              min="1"
+                                              step="1"
+                                            />
+                                          </div>
+                                          <div className="col-span-3">
+                                            <Label className="text-[10px] text-slate-400">P. Unitario</Label>
+                                            <CurrencyInput placeholder="0" disabled={pa.isPending} className={`h-7 text-xs font-semibold ${pa.isPending ? 'opacity-50' : 'bg-white'}`} value={pa.price ? parseFloat(pa.price) : 0} onChange={(val) => updatePartPrice(item.id, 'price', val.toString())} />
+                                          </div>
+                                        </div>
                                      </div>
                                    ) : (
                                      <div className="bg-green-50 p-2.5 rounded border border-green-200 space-y-2">
@@ -498,13 +517,28 @@ export default function AdminPreventiveReview() {
                                         <Label htmlFor={`apnd-${globalIdx}`} className="text-[10px] font-bold text-slate-500 cursor-pointer">Pendiente</Label>
                                       </div>
                                   </div>
-                                  <CurrencyInput 
-                                    placeholder="0" 
-                                    disabled={addPart.isPending}
-                                    className={`h-8 bg-white ${addPart.isPending ? 'opacity-50' : ''}`} 
-                                    value={addPart.price ? parseFloat(addPart.price) : 0}
-                                    onChange={(val) => updateAdditionalPart(globalIdx, 'price', val.toString())}
-                                  />
+                                  <div className="flex gap-2">
+                                    <div className="w-20">
+                                      <Label className="text-xs">Cant.</Label>
+                                      <Input 
+                                        type="number" 
+                                        className="h-8 bg-white" 
+                                        value={addPart.quantity || "1"} 
+                                        onChange={(e) => updateAdditionalPart(globalIdx, 'quantity', e.target.value)}
+                                        min="1"
+                                      />
+                                    </div>
+                                    <div className="flex-1 text-right">
+                                      <Label className="text-xs">P. Unitario</Label>
+                                      <CurrencyInput 
+                                        placeholder="0" 
+                                        disabled={addPart.isPending}
+                                        className={`h-8 bg-white text-right ${addPart.isPending ? 'opacity-50' : ''}`} 
+                                        value={addPart.price ? parseFloat(addPart.price) : 0}
+                                        onChange={(val) => updateAdditionalPart(globalIdx, 'price', val.toString())}
+                                      />
+                                    </div>
+                                  </div>
                                 </div>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 md:mb-0 mb-4 self-end md:self-auto" onClick={() => removeAdditionalPart(globalIdx)}>
                                   <Trash2 className="h-4 w-4" />
@@ -559,15 +593,19 @@ export default function AdminPreventiveReview() {
                                     totalVal += pArr.repairPending ? 0 : rp
                                  } else {
                                     const pp = pArr?.price ? parseFloat(pArr.price) : 0
-                                    items.push({ desc: pArr?.desc || item.name, price: pp, isPending: pArr?.isPending || false })
-                                    totalVal += pArr?.isPending ? 0 : pp
+                                    const pq = parseFloat(pArr?.quantity) || 1
+                                    const rowVal = pq * pp
+                                    items.push({ desc: `${pq > 1 ? `${pq}x ` : ''}${pArr?.desc || item.name}`, price: rowVal, isPending: pArr?.isPending || false })
+                                    totalVal += pArr?.isPending ? 0 : rowVal
                                  }
                               }
                            })
                            additionalParts.filter(p => p.category === cat.title).forEach(p => {
                               const pp = p.price ? parseFloat(p.price) : 0
-                              items.push({ desc: p.description || "Parte adicional", price: pp, isPending: p.isPending })
-                              totalVal += p.isPending ? 0 : pp
+                              const pq = parseFloat(p.quantity) || 1
+                              const rowVal = pq * pp
+                              items.push({ desc: `${pq > 1 ? `${pq}x ` : ''}${p.description || "Parte adicional"}`, price: rowVal, isPending: p.isPending })
+                              totalVal += p.isPending ? 0 : rowVal
                            })
                         })
 
