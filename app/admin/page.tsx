@@ -21,9 +21,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { QuickPhotoUpload } from "@/components/quick-photo-upload"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { getServiceOrderById, createRevenue, deleteVehicle, deleteServiceOrder, createArchivedOrder } from "@/lib/db"
+import { getServiceOrderById, createRevenue, deleteVehicle, deleteServiceOrder, createArchivedOrder, updateQuotation } from "@/lib/db"
 import { printInvoice, generateInvoiceHTML } from "@/lib/invoice-generator"
 import { generateOrderSummaryHTML } from "@/lib/order-summary-html"
+import { CurrencyInput } from "@/components/currency-input"
 
 export default function AdminPage() {
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([])
@@ -59,6 +60,15 @@ export default function AdminPage() {
   const [qcServices, setQcServices] = useState<Record<string, boolean>>({})
   const [qcWashed, setQcWashed] = useState(false)
   const [qcNote, setQcNote] = useState("")
+  
+  // Estados para DIALOGO WHATSAPP RAPIDO
+  const [whatsappDialogOpen, setWhatsappDialogOpen] = useState(false)
+  const [selectedOrderForWhatsApp, setSelectedOrderForWhatsApp] = useState<ServiceOrder | null>(null)
+  const [whatsappOption, setWhatsappOption] = useState<'reception' | 'quick-quote' | 'greeting'>('greeting')
+  const [quickQuoteItems, setQuickQuoteItems] = useState<{ id: string, desc: string, qty: number, price: number, category: string }[]>([
+    { id: '1', desc: '', qty: 1, price: 0, category: 'General' }
+  ])
+  const [isSavingWhatsApp, setIsSavingWhatsApp] = useState(false)
 
   const { user } = useAuth()
   const router = useRouter()
@@ -456,6 +466,101 @@ Su vehículo se encuentra listo para el retiro.`
     )
   }
 
+  const addQuickQuoteItem = () => {
+    setQuickQuoteItems([
+      ...quickQuoteItems,
+      { id: Date.now().toString(), desc: '', qty: 1, price: 0, category: 'General' }
+    ])
+  }
+
+  const updateQuickQuoteItem = (id: string, field: string, value: any) => {
+    setQuickQuoteItems(quickQuoteItems.map(item => 
+      item.id === id ? { ...item, [field]: value } : item
+    ))
+  }
+
+  const removeQuickQuoteItem = (id: string) => {
+    if (quickQuoteItems.length > 1) {
+      setQuickQuoteItems(quickQuoteItems.filter(item => item.id !== id))
+    }
+  }
+
+  const handleSendWhatsAppAction = async () => {
+    if (!selectedOrderForWhatsApp) return
+    const order = selectedOrderForWhatsApp
+    const client = clients.find(c => c.id === order.clientId)
+    const vehicle = vehicles.find(v => v.id === order.vehicleId)
+    if (!client) return
+
+    let message = ""
+    const phone = client.phone.replace(/\D/g, '')
+
+    if (whatsappOption === 'greeting') {
+      message = "¡Hola! Buenos días, nos comunicamos de parte del Taller."
+    } else if (whatsappOption === 'reception') {
+      message = `*REPORTE DE RECEPCIÓN*\n\nHola ${client.name}, le informamos que hemos recibido su vehículo ${vehicle?.brand} ${vehicle?.model} con placas ${vehicle?.licensePlate} en nuestro taller. Estaremos informándole sobre el proceso de diagnóstico pronto.`
+    } else if (whatsappOption === 'quick-quote') {
+      setIsSavingWhatsApp(true)
+      try {
+        let itemsText = `Hola *${client.name}*, envío cotización rápida para su vehículo *${vehicle?.licensePlate}*:\n\n`
+        let totalVal = 0
+        const newQuotationItems = [...(order.quotation?.items || [])]
+
+        quickQuoteItems.forEach(item => {
+          if (!item.desc.trim()) return
+          const itemTotal = item.qty * item.price
+          totalVal += itemTotal
+          itemsText += `- ${item.qty}x ${item.desc}: ${formatCurrency(itemTotal)}\n`
+          
+          // Añadir a la lista de base de datos
+          newQuotationItems.push({
+            id: `quick-${Date.now()}-${item.id}`,
+            description: item.desc,
+            quantity: item.qty,
+            unitPrice: item.price,
+            total: itemTotal,
+            includesTax: false,
+            category: item.category || 'General'
+          })
+        })
+
+        if (totalVal === 0) {
+          alert("Por favor agregue al menos un ítem con valor.")
+          setIsSavingWhatsApp(false)
+          return
+        }
+
+        itemsText += `\n*TOTAL: ${formatCurrency((order.quotation?.total || 0) + totalVal)}*`
+        message = itemsText
+
+        // Actualizar base de datos
+        const updatedQuotation = {
+          id: order.quotation?.id || `q-${order.id}`,
+          items: newQuotationItems,
+          total: (order.quotation?.total || 0) + totalVal,
+          subtotal: (order.quotation?.subtotal || 0) + totalVal,
+          tax: order.quotation?.tax || 0,
+          includesTax: order.quotation?.includesTax || false,
+          createdAt: order.quotation?.createdAt || new Date().toISOString(),
+          createdBy: order.quotation?.createdBy || 'admin'
+        }
+
+        await updateQuotation(order.id, updatedQuotation)
+        await loadData()
+      } catch (err) {
+        console.error("Error saving quick quote:", err)
+        alert("Error al guardar la cotización rápida.")
+        setIsSavingWhatsApp(false)
+        return
+      } finally {
+        setIsSavingWhatsApp(false)
+      }
+    }
+
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank")
+    setWhatsappDialogOpen(false)
+  }
+
   return (
     <ProtectedRoute allowedRoles={["admin"]}>
       <DashboardLayout title="Panel de Administración">
@@ -691,14 +796,10 @@ Su vehículo se encuentra listo para el retiro.`
                                                   onClick={(e) => {
                                                     e.preventDefault()
                                                     e.stopPropagation()
-                                                    const phone = getClientPhone(order.clientId)
-                                                    if (phone) {
-                                                      const cleanPhone = phone.replace(/\D/g, '')
-                                                      const message = encodeURIComponent("Buenos dias")
-                                                      window.open(`https://wa.me/${cleanPhone}?text=${message}`, "_blank")
-                                                    } else {
-                                                      alert("El cliente no tiene un teléfono registrado.")
-                                                    }
+                                                    setSelectedOrderForWhatsApp(order)
+                                                    setWhatsappOption('greeting')
+                                                    setQuickQuoteItems([{ id: Date.now().toString(), desc: '', qty: 1, price: 0, category: 'General' }])
+                                                    setWhatsappDialogOpen(true)
                                                   }}
                                                 >
                                                   <MessageCircle className="h-4 w-4 mr-2" />
@@ -1170,6 +1271,170 @@ Su vehículo se encuentra listo para el retiro.`
                 }
             >
               Guardar Control de Calidad
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOGO DE WHATSAPP RAPIDO */}
+      <Dialog open={whatsappDialogOpen} onOpenChange={setWhatsappDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-700">
+              <MessageCircle className="h-5 w-5" /> WhatsApp Seguro y Rápido
+            </DialogTitle>
+            <DialogDescription>
+              Seleccione el tipo de mensaje que desea enviar al cliente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 space-y-6">
+            {/* Opciones de Tipos de Mensajes */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Button 
+                variant={whatsappOption === 'reception' ? 'default' : 'outline'}
+                className={`h-auto py-4 flex flex-col gap-2 ${whatsappOption === 'reception' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                onClick={() => setWhatsappOption('reception')}
+              >
+                <Car className="h-5 w-5" />
+                <div className="flex flex-col text-xs">
+                   <span className="font-bold">Recepción</span>
+                   <span className="opacity-70">Aviso de ingreso</span>
+                </div>
+              </Button>
+
+              <Button 
+                variant={whatsappOption === 'quick-quote' ? 'default' : 'outline'}
+                className={`h-auto py-4 flex flex-col gap-2 ${whatsappOption === 'quick-quote' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                onClick={() => setWhatsappOption('quick-quote')}
+              >
+                <DollarSign className="h-5 w-5" />
+                <div className="flex flex-col text-xs">
+                   <span className="font-bold">Cotización</span>
+                   <span className="opacity-70">Items rápidos</span>
+                </div>
+              </Button>
+
+              <Button 
+                variant={whatsappOption === 'greeting' ? 'default' : 'outline'}
+                className={`h-auto py-4 flex flex-col gap-2 ${whatsappOption === 'greeting' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                onClick={() => setWhatsappOption('greeting')}
+              >
+                <Users className="h-5 w-5" />
+                <div className="flex flex-col text-xs">
+                   <span className="font-bold">Saludo</span>
+                   <span className="opacity-70">Mensaje libre</span>
+                </div>
+              </Button>
+            </div>
+
+            <Separator />
+
+            {/* Renderizado según la opción */}
+            {whatsappOption === 'quick-quote' && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
+                <div className="flex items-center justify-between">
+                   <h4 className="font-black text-sm uppercase tracking-wider text-slate-500">Items de Cotización Rápida</h4>
+                   <Button size="sm" variant="outline" onClick={addQuickQuoteItem} className="h-7 text-xs border-dashed border-green-600 text-green-700 hover:bg-green-50">
+                      <Plus className="h-3 w-3 mr-1" /> Añadir Fila
+                   </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {quickQuoteItems.map((item, index) => (
+                    <div key={item.id} className="flex flex-col md:flex-row gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200 group">
+                      <div className="flex-1 space-y-1">
+                        <Label className="text-[10px] font-bold text-slate-400">Descripción / Repuesto</Label>
+                        <Input 
+                          placeholder="Ej. Cambio de Aceite..."
+                          value={item.desc}
+                          onChange={(e) => updateQuickQuoteItem(item.id, 'desc', e.target.value)}
+                          className="h-8 bg-white"
+                        />
+                      </div>
+                      <div className="w-full md:w-20 space-y-1">
+                        <Label className="text-[10px] font-bold text-slate-400">Cant.</Label>
+                        <Input 
+                          type="number"
+                          value={item.qty}
+                          onChange={(e) => updateQuickQuoteItem(item.id, 'qty', parseInt(e.target.value) || 1)}
+                          className="h-8 bg-white text-center"
+                          min="1"
+                        />
+                      </div>
+                      <div className="w-full md:w-32 space-y-1">
+                        <Label className="text-[10px] font-bold text-slate-400">P. Unitario</Label>
+                        <CurrencyInput 
+                          value={item.price}
+                          onChange={(val) => updateQuickQuoteItem(item.id, 'price', val)}
+                          className="h-8 bg-white text-right"
+                        />
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => removeQuickQuoteItem(item.id)}
+                        className="self-end md:self-center h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                        disabled={quickQuoteItems.length <= 1}
+                      >
+                         <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Subtotal preview */}
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex justify-between items-center">
+                   <span className="text-xs font-bold text-green-700 uppercase">Total de esta cotización rápida</span>
+                   <span className="text-lg font-black text-green-800">
+                     {formatCurrency(quickQuoteItems.reduce((acc, it) => acc + (it.qty * it.price), 0))}
+                   </span>
+                </div>
+                <p className="text-[10px] text-slate-400 italic">* Al enviar, estos ítems se añadirán automáticamente a la cotización oficial de la orden.</p>
+              </div>
+            )}
+
+            {whatsappOption === 'reception' && (
+              <div className="p-6 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center space-y-3">
+                 <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <CheckCircle className="h-6 w-6" />
+                 </div>
+                 <h4 className="font-bold">Mensaje de Recepción Listo</h4>
+                 <p className="text-sm text-slate-500">Se enviará un mensaje formal confirmando que el vehículo ha sido recibido satisfactoriamente en el taller.</p>
+              </div>
+            )}
+
+            {whatsappOption === 'greeting' && (
+              <div className="p-6 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center space-y-3">
+                 <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <MessageCircle className="h-6 w-6" />
+                 </div>
+                 <h4 className="font-bold">Saludo Estándar</h4>
+                 <p className="text-sm text-slate-500">Se abrirá el chat con un saludo formal: "¡Hola! Buenos días, nos comunicamos de parte del Taller."</p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setWhatsappDialogOpen(false)} disabled={isSavingWhatsApp}>
+              Cancelar
+            </Button>
+            <Button 
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={handleSendWhatsAppAction}
+              disabled={isSavingWhatsApp}
+            >
+              {isSavingWhatsApp ? (
+                <>
+                  <Clock className="h-4 w-4 mr-2 animate-spin" />
+                  Sincronizando...
+                </>
+              ) : (
+                <>
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Enviar a WhatsApp
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
