@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Trash2, Plus, Calendar } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Trash2, Plus, Calendar, History } from 'lucide-react';
 import { getExpenses, getRevenues, createExpense, deleteExpense, deleteRevenue, createRevenue } from '@/lib/db';
 import { formatCurrency } from '@/lib/utils-service';
 import { useAuth } from '@/lib/auth-context';
