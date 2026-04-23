@@ -178,6 +178,11 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
       arr[entryIndex] = { ...arr[entryIndex], digits: newDigits }
       return { ...prev, [catTitle]: arr }
     })
+  }
+
+  const handleFocusDtcDigit = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.target.select();
+  }
 
   const handleMarkAllAsOk = () => {
     const newItems = { ...itemStates }
