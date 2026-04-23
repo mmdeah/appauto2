@@ -227,7 +227,7 @@ export interface ChecklistCategory {
 export interface ReviewItem {
   id: string;
   name: string;
-  status: 'ok' | 'warning' | 'urgent'; 
+  status: 'ok' | 'warning' | 'urgent' | null; 
   needsPart: boolean; 
   laborCost: number; 
   adminPricesLabor?: boolean;

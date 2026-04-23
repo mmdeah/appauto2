@@ -164,7 +164,7 @@ export default function TechnicianPreventiveReview() {
       // Build ReviewItems for this cat
       const reviewItems: ReviewItem[] = cat.items.map(item => {
         const iState = itemStates[cat.title][item]
-        const stateStatus = iState.status || 'ok'
+        const stateStatus = iState.status
         if (iState.needsPart && stateStatus !== 'ok') globalNeedsPart = true
 
         return {
