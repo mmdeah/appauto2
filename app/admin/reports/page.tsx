@@ -14,6 +14,8 @@ import { Separator } from "@/components/ui/separator"
 import { ArrowLeft, FileText, Plus, Trash2, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 import { getReports, getVehicles, getServiceOrders, getClients, deleteReport, getPreventiveReviews } from "@/lib/db"
+import { toast } from "sonner"
+
 import { generateVehicleReportHTML, printInvoice } from "@/lib/invoice-generator"
 import type { Report, Vehicle, ServiceOrder, Client, PreventiveReview } from "@/lib/types"
 
