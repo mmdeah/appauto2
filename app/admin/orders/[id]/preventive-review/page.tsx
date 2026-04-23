@@ -172,10 +172,18 @@ export default function AdminPreventiveReview() {
         cat.items.forEach(item => {
           if (item.laborCost > 0) {
             const cost = item.laborCost
+            let desc = `Mano de obra: ${item.name}`
+            
+            // Si es escáner y tiene códigos, los agregamos al nombre
+            if (item.name === "Revisión Especial (Escáner)") {
+               const codes = cat.dtcCodes?.map(d => d.code).join(', ')
+               if (codes) desc += ` (Códigos: ${codes})`
+            }
+
             qItems.push({
               id: `labor-${item.id}`,
               category: cat.title,
-              description: `Mano de obra: ${item.name}`,
+              description: desc,
               quantity: 1,
               unitPrice: cost,
               total: cost,
@@ -242,23 +250,6 @@ export default function AdminPreventiveReview() {
         })
       })
 
-      // Auto-add "Revisión y Diagnóstico Avanzado" if any scanner DTC codes found
-      const dtcCategories = review.categories.filter(cat => cat.isEscaner && cat.dtcCodes && cat.dtcCodes.length > 0)
-      if (dtcCategories.length > 0) {
-        const alreadyHasRevAvanzada = qItems.some(qi => qi.description.toLowerCase().includes('revisión') && qi.description.toLowerCase().includes('avanzad'))
-        if (!alreadyHasRevAvanzada) {
-          const dtcCodes = dtcCategories.flatMap(c => c.dtcCodes!.map(d => d.code)).join(', ')
-          qItems.push({
-            id: `dtc-revision-${Date.now()}`,
-            category: dtcCategories[0].title,
-            description: `Revisión y Diagnóstico Avanzado (Códigos: ${dtcCodes})`,
-            quantity: 1,
-            unitPrice: 0,
-            total: 0,
-            includesTax: false
-          })
-        }
-      }
 
       const newQuotation: Quotation = {
         id: order.quotation?.id || `quot-${Date.now()}`,
@@ -552,7 +543,12 @@ export default function AdminPreventiveReview() {
                         review.categories.forEach(cat => {
                            cat.items.forEach(item => {
                               if (item.laborCost > 0) {
-                                 items.push({ desc: `MO: ${item.name}`, price: item.laborCost, isPending: false })
+                                 let desc = `Mano de obra: ${item.name}`
+                                 if (item.name === "Revisión Especial (Escáner)") {
+                                    const codes = cat.dtcCodes?.map(d => d.code).join(', ')
+                                    if (codes) desc += ` (Códigos: ${codes})`
+                                 }
+                                 items.push({ desc, price: item.laborCost, isPending: false })
                                  totalVal += item.laborCost
                               }
                               if (item.needsPart) {
