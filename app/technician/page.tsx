@@ -12,6 +12,7 @@ import { Clock, CheckCircle2, Wrench, ListChecks, FileText, Search, AlertCircle,
 import { getServiceOrdersByTechnicianId, getVehicles, getUsers, getServiceOrders, getClients, updateServiceOrder } from '@/lib/db';
 import type { ServiceState, Client, ServiceOrder, Vehicle } from '@/lib/types';
 import { toast } from 'sonner';
+import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS } from '@/lib/utils-service';
 
 import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
