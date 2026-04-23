@@ -1380,7 +1380,7 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                           <Button variant="outline" onClick={() => setIsQuoteDialogOpen(false)}>
                             Cancelar
                           </Button>
-                          <Button onClick={saveQuotation} disabled={isSaving || quotationItems.length === 0}>
+                          <Button onClick={saveQuotation} disabled={isSaving}>
                             <Save className="h-4 w-4 mr-2" />
                             {isSaving ? "Guardando..." : "Guardar Cotización"}
                           </Button>
