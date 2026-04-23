@@ -752,7 +752,15 @@ TOTAL: ${formatCurrency(order.quotation.total)}
               messageText += `*${cat.title}:*\n`
               fails.forEach(fail => {
                 const priorityPrefix = fail.status === 'urgent' ? 'Urgente:' : 'Atención:'
-                messageText += `  - ${priorityPrefix} ${fail.name}\n`
+                let failDesc = fail.name
+                
+                // Si es un ítem de escáner y hay códigos registrados en la categoría, los añadimos
+                if (fail.name.includes("Escáner") && cat.dtcCodes && cat.dtcCodes.length > 0) {
+                   const codes = cat.dtcCodes.map(d => d.code).join(', ')
+                   failDesc += ` (Códigos: ${codes})`
+                }
+                
+                messageText += `  - ${priorityPrefix} ${failDesc}\n`
               })
               messageText += `\n`
             } else {
