@@ -734,8 +734,13 @@ TOTAL: ${formatCurrency(order.quotation.total)}
     if (review) {
         messageText += `*REPORTE DIAGNÓSTICO DEL VEHÍCULO:*\n\n`
         review.categories.forEach(cat => {
-            // Solo incluimos la categoría si algún ítem fue explícitamente marcado como ok, warning o urgent
-            const reviewedItems = cat.items.filter(i => i.status === 'ok' || i.status === 'warning' || i.status === 'urgent')
+            // Solo incluimos la categoría si algún ítem fue explícitamente marcado (evitar null o undefined)
+            const reviewedItems = cat.items.filter(i => 
+              i.status === 'ok' || 
+              i.status === 'warning' || 
+              i.status === 'urgent'
+            )
+            
             if (reviewedItems.length === 0) return 
             
             const fails = reviewedItems.filter(i => i.status !== 'ok')
