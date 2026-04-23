@@ -10,7 +10,7 @@ import { getServiceOrderById, getPreventiveReviewByOrderId, updateQuotation, upd
 import type { ServiceOrder, PreventiveReview, Quotation, QuotationItem, Vehicle, Client } from "@/lib/types"
 import { toast } from "sonner"
 import { useParams, useRouter } from "next/navigation"
-import { CheckCircle, AlertTriangle, FileText, Plus, XCircle, Wrench, Package, PackagePlus, Trash2, User, Car, Phone, Mail, CreditCard, Calendar, ArrowLeft, Hammer, TrendingDown } from "lucide-react"
+import { CheckCircle, AlertTriangle, FileText, Plus, XCircle, Wrench, Package, PackagePlus, Trash2, User, Car, Phone, Mail, CreditCard, Calendar, ArrowLeft, Hammer, TrendingDown, MessageCircle } from "lucide-react"
 import Link from "next/link"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
