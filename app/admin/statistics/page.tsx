@@ -547,12 +547,20 @@ export default function StatisticsPage() {
               <h1 className="text-3xl font-bold">Estadísticas y Reportes</h1>
               <p className="text-muted-foreground">Análisis de ingresos, gastos y ganancias</p>
             </div>
-            <Button variant="outline" asChild>
-              <Link href="/admin">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Volver al Dashboard
-              </Link>
-            </Button>
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              <Button variant="outline" asChild>
+                <Link href="/admin/history">
+                  <History className="h-4 w-4 mr-2" />
+                  Bitácora Histórica
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/admin">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Volver al Dashboard
+                </Link>
+              </Button>
+            </div>
           </div>
 
           {/* Selector de Periodo */}

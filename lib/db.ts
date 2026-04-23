@@ -584,3 +584,13 @@ export async function deleteSpecialService(id: string): Promise<void> {
     method: 'DELETE',
   })
 }
+
+// History Log functions
+export async function searchHistoryLogs(query: string = ''): Promise<string[]> {
+  try {
+    return await apiRequest(`/logs/search?q=${encodeURIComponent(query)}`)
+  } catch (error) {
+    console.error('Error searching history logs:', error)
+    return []
+  }
+}

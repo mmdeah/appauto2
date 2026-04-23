@@ -256,6 +256,79 @@ app.delete('/api/delete-photo', (req, res) => {
   });
 });
 
+// --- SISTEMA DE BITÁCORA DE TEXTO (LOW IMPACT) ---
+
+// Endpoint para buscar en el historial de texto
+app.get('/api/logs/search', (req, res) => {
+  const query = (req.query.q || '').toString().toLowerCase();
+  const logFile = path.join(DATA_DIR, 'registro_revisiones.txt');
+  
+  if (!fs.existsSync(logFile)) {
+    return res.json([]);
+  }
+
+  try {
+    const content = fs.readFileSync(logFile, 'utf8');
+    const lines = content.split('\n').filter(line => line.trim() !== '');
+    
+    if (!query) {
+      // Devolver las últimas 100 líneas si no hay búsqueda
+      return res.json(lines.reverse().slice(0, 100));
+    }
+
+    const matches = lines.filter(line => line.toLowerCase().includes(query)).reverse();
+    res.json(matches);
+  } catch (error) {
+    console.error('Error al leer log:', error);
+    res.status(500).json({ error: 'Error al leer el archivo de bitácora' });
+  }
+});
+
+// Middleware para interceptar y guardar en el log de texto
+app.use('/api/preventive-reviews', (req, res, next) => {
+  if (req.method === 'POST' || req.method === 'PUT') {
+    const originalSend = res.send;
+    res.send = function (data) {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        try {
+          const review = JSON.parse(data);
+          const dbData = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+          const vehicle = dbData.vehicles.find(v => v.id === review.vehicleId);
+          
+          if (vehicle) {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('es-CO') + ' ' + now.toLocaleTimeString('es-CO');
+            
+            // Generar resumen de fallas
+            const issues = [];
+            if (review.categories && Array.isArray(review.categories)) {
+              review.categories.forEach(cat => {
+                if (cat.items && Array.isArray(cat.items)) {
+                  cat.items.forEach(item => {
+                    if (item.status === 'warning' || item.status === 'urgent') {
+                      issues.push(`${item.name} (${item.status === 'urgent' ? 'URGENTE' : 'ALERTA'})`);
+                    }
+                  });
+                }
+              });
+            }
+
+            const summary = issues.length > 0 ? issues.join(', ') : 'REVISIÓN OK';
+            const notes = (review.generalNotes || 'Sin notas').replace(/\n/g, ' ');
+            const logLine = `${dateStr} | ${vehicle.licensePlate} | ${vehicle.brand} ${vehicle.model} | ${summary} | NOTAS: ${notes}\n`;
+            
+            fs.appendFileSync(path.join(DATA_DIR, 'registro_revisiones.txt'), logLine);
+          }
+        } catch (e) {
+          console.error('Error al procesar log de texto:', e);
+        }
+      }
+      return originalSend.apply(res, arguments);
+    };
+  }
+  next();
+});
+
 // API REST para datos (json-server)
 app.use('/api', router);
 
