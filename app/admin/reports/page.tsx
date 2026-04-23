@@ -271,15 +271,33 @@ export default function ReportsPage() {
                                 })}
                               </p>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleMarkAsOk(report.id)}
-                              className="flex-shrink-0"
-                              title="Marcar como OK y eliminar"
-                            >
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleMarkAsOk(report.id)}
+                                className="flex-shrink-0"
+                                title="Marcar como OK y eliminar"
+                              >
+                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={async () => {
+                                  if (confirm("¿Estás seguro de que deseas eliminar este reporte?")) {
+                                    const { deleteReport } = await import("@/lib/db")
+                                    await deleteReport(report.id)
+                                    toast.success("Reporte eliminado")
+                                    window.location.reload()
+                                  }
+                                }}
+                                className="flex-shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                title="Eliminar reporte"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                           <Separator className="my-2" />
                           <p className="text-sm whitespace-pre-wrap line-clamp-3">{report.text}</p>

@@ -80,6 +80,7 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
           initialItems[cat.title][item] = { status: null, needsPart: false, laborCost: 0, adminPricesLabor: false }
         })
         if (cat.isEscaner) {
+          initialItems[cat.title]["Revisión Especial (Escáner)"] = { status: 'warning', needsPart: false, laborCost: 0, adminPricesLabor: false }
           initialDtcs[cat.title] = [{
             id: Date.now().toString(),
             isManual: false,
@@ -124,8 +125,16 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
   }
 
   const toggleStatus = (catTitle: string, itemName: string, status: 'ok' | 'warning' | 'urgent') => {
-    const currentStatus = itemStates[catTitle]?.[itemName]?.status
-    updateItemState(catTitle, itemName, 'status', currentStatus === status ? null : status)
+    const currentState = itemStates[catTitle]?.[itemName]
+    const currentStatus = currentState?.status
+    const newStatus = currentStatus === status ? null : status
+    
+    // Si se marca como algo diferente de OK, activar "Requiere repuesto" por defecto
+    if (newStatus === 'warning' || newStatus === 'urgent') {
+      updateItemState(catTitle, itemName, 'needsPart', true)
+    }
+    
+    updateItemState(catTitle, itemName, 'status', newStatus)
   }
 
   const addDtcEntry = (catTitle: string) => {
@@ -196,6 +205,21 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
           adminPricesLabor: stateStatus !== 'ok' ? iState.adminPricesLabor : false
         }
       })
+
+      // Agregar ítem virtual de escáner si aplica
+      if (cat.isEscaner && itemStates[cat.title]?.["Revisión Especial (Escáner)"]) {
+        const scannerState = itemStates[cat.title]["Revisión Especial (Escáner)"]
+        if (scannerState.laborCost > 0 || scannerState.adminPricesLabor) {
+          reviewItems.push({
+            id: `${cat.id}-scanner-labor`,
+            name: "Revisión Especial (Escáner)",
+            status: "warning",
+            needsPart: false,
+            laborCost: scannerState.adminPricesLabor ? 0 : scannerState.laborCost,
+            adminPricesLabor: scannerState.adminPricesLabor
+          })
+        }
+      }
 
       // Add Special Services for this category
       specialServices.forEach(s => {
@@ -345,11 +369,38 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
                         </div>
                      </div>
                    ))}
-                   <Button size="sm" variant="outline" className="w-full text-[10px] h-6 border-dashed border-blue-300 text-blue-700 bg-white dark:bg-transparent" onClick={() => addDtcEntry(cat.title)}>
+                    <Button size="sm" variant="outline" className="w-full text-[10px] h-6 border-dashed border-blue-300 text-blue-700 bg-white dark:bg-transparent" onClick={() => addDtcEntry(cat.title)}>
                       <Plus className="h-3 w-3 mr-1" /> Añadir otro código DTC
-                   </Button>
-                </div>
-              )}
+                    </Button>
+
+                    {/* Campo de Mano de Obra para Escáner */}
+                    {dtcStates[cat.title] && dtcStates[cat.title].some(d => d.digits.some(digit => digit !== "") || d.manualCode !== "" || d.description !== "") && (
+                      <div className="mt-4 p-3 bg-white dark:bg-slate-900 border rounded-lg shadow-sm border-blue-200">
+                        <Label className="text-[10px] uppercase font-bold text-blue-700 mb-2 flex items-center gap-1">
+                          <Wrench className="h-3 w-3" /> Mano de obra por diagnóstico avanzado
+                        </Label>
+                        <div className="flex gap-4 items-end">
+                           <div className="flex-1">
+                             <Label className="text-[10px]">Costo Sugerido</Label>
+                             <CurrencyInput 
+                               className="h-8 text-xs font-bold" 
+                               value={itemStates[cat.title]?.["Revisión Especial (Escáner)"]?.laborCost || 0} 
+                               onChange={(val) => updateItemState(cat.title, "Revisión Especial (Escáner)", 'laborCost', val)} 
+                             />
+                           </div>
+                           <div className="flex items-center space-x-2 mb-2">
+                             <Checkbox 
+                               id={`delegate-scanner-${cat.title}`} 
+                               checked={itemStates[cat.title]?.["Revisión Especial (Escáner)"]?.adminPricesLabor || false}
+                               onCheckedChange={(c) => updateItemState(cat.title, "Revisión Especial (Escáner)", 'adminPricesLabor', !!c)}
+                             />
+                             <Label htmlFor={`delegate-scanner-${cat.title}`} className="text-[9px] text-slate-500 cursor-pointer">Delegar valor al admin</Label>
+                           </div>
+                        </div>
+                      </div>
+                    )}
+                 </div>
+               )}
 
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {cat.items.map((item, itemIdx) => {

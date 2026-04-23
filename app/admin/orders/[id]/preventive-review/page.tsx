@@ -251,7 +251,7 @@ export default function AdminPreventiveReview() {
           qItems.push({
             id: `dtc-revision-${Date.now()}`,
             category: dtcCategories[0].title,
-            description: `Revisión y Diagnóstico Avanzado (Códigos: ${dtcCodes}) - PENDIENTE ADMIN`,
+            description: `Revisión y Diagnóstico Avanzado (Códigos: ${dtcCodes})`,
             quantity: 1,
             unitPrice: 0,
             total: 0,
@@ -346,196 +346,275 @@ export default function AdminPreventiveReview() {
             {review.status === 'quoted' && <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold font-mono text-center flex-shrink-0">YA COTIZADO</span>}
           </div>
 
-          <div className="grid grid-cols-1 gap-6">
-            {review.categories.map((cat, idx) => {
-              // Filtrar items que fallaron o tienen componentes DTC
-              const failedItems = cat.items.filter(item => item.status !== 'ok' && item.status !== null)
-              const hasDtcs = cat.isEscaner && cat.dtcCodes && cat.dtcCodes.length > 0
-              const adds = additionalParts.filter(p => p.category === cat.title)
-              
-              if (failedItems.length === 0 && !hasDtcs && adds.length === 0) return null; // No need to show perfect categories unless adding parts
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            <div className="lg:col-span-2 space-y-6">
+              {review.categories.map((cat, idx) => {
+                // Filtrar items que fallaron o tienen componentes DTC
+                const failedItems = cat.items.filter(item => item.status !== 'ok' && item.status !== null)
+                const hasDtcs = cat.isEscaner && cat.dtcCodes && cat.dtcCodes.length > 0
+                const adds = additionalParts.filter(p => p.category === cat.title)
+                
+                if (failedItems.length === 0 && !hasDtcs && adds.length === 0) return null; // No need to show perfect categories unless adding parts
 
-              return (
-                <Card key={idx} className="border-slate-200">
-                  <div className="bg-slate-50 border-b px-4 py-3 font-bold uppercase text-sm flex justify-between items-center group">
-                    {cat.title}
-                    <Button variant="outline" size="sm" className="h-7 text-xs bg-white text-blue-600 border-blue-200 hover:bg-blue-50" onClick={() => addAdditionalPart(cat.title)}>
-                      <PackagePlus className="h-3 w-3 mr-1" /> Repuesto Extra
+                return (
+                  <Card key={idx} className="border-slate-200">
+                    <div className="bg-slate-50 border-b px-4 py-3 font-bold uppercase text-sm flex justify-between items-center group">
+                      {cat.title}
+                      <Button variant="outline" size="sm" className="h-7 text-xs bg-white text-blue-600 border-blue-200 hover:bg-blue-50" onClick={() => addAdditionalPart(cat.title)}>
+                        <PackagePlus className="h-3 w-3 mr-1" /> Repuesto Extra
+                      </Button>
+                    </div>
+                    <CardContent className="p-0">
+                      
+                      {/* Mostrar DTCs */}
+                      {hasDtcs && (
+                        <div className="p-4 bg-blue-50 border-b border-blue-100">
+                          <h4 className="text-xs font-bold text-blue-800 uppercase mb-3">Códigos de Falla Escáner</h4>
+                          <div className="space-y-2">
+                            {cat.dtcCodes!.map((dtc, dtcIdx) => (
+                               <div key={dtcIdx} className="flex gap-3 bg-white p-2 rounded border border-blue-200 shadow-sm">
+                                 <div className="bg-blue-600 text-white font-mono px-3 py-1 rounded text-sm font-bold flex items-center">{dtc.code}</div>
+                                 <div className="flex-1 flex items-center text-sm">{dtc.description || <i className="text-slate-400">Sin descripción aportada por el técnico</i>}</div>
+                               </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Fails */}
+                      <div className="divide-y">
+                        {failedItems.map((item, iIdx) => (
+                          <div key={iIdx} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                             <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  {item.status === 'urgent' ? 
+                                    <XCircle className="h-4 w-4 text-red-500" /> : 
+                                    <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                                  }
+                                   <span className="flex items-center gap-1 font-semibold text-slate-800">{item.name}</span>
+                                </div>
+                                <div className="flex flex-col gap-2 text-sm text-slate-600 pl-6">
+                                   <Label className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                                     <Wrench className="h-3 w-3"/> MANO DE OBRA 
+                                     {item.adminPricesLabor && <span className="ml-2 text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded border border-orange-200">El técnico delegó este costo</span>}
+                                   </Label>
+                                   <CurrencyInput 
+                                     className="h-8 text-sm w-32 font-bold" 
+                                     value={item.laborCost} 
+                                     onChange={(val) => updateLaborCost(idx, iIdx, val)} 
+                                   />
+                                </div>
+                             </div>
+
+                             {/* Part pricing block */}
+                             {item.needsPart && (() => {
+                               const pa = partPrices[item.id] || { price: '', desc: '', isPending: boolean, isRepairable: false, repairPrice: '', repairPending: false }
+                               const suggestions = getSuggestionsForPart(item.name)
+                               const isRepairable = pa.isRepairable
+                               return (
+                                 <div className="w-full md:w-auto md:min-w-[320px] space-y-2">
+
+                                   {/* Suggestions panel */}
+                                   {suggestions.length > 0 && (
+                                     <div className="bg-indigo-50 border border-indigo-200 rounded p-2 text-[10px] space-y-1">
+                                       <p className="text-indigo-700 font-bold flex items-center gap-1"><TrendingDown className="h-3 w-3" /> Precios históricos ({vehicle?.brand} {vehicle?.model})</p>
+                                       {suggestions.map((s, si) => (
+                                         <p key={si} className="text-indigo-600">
+                                           • {s.desc}: <span className="font-semibold">${s.price.toLocaleString('es-CO')}</span> <span className="text-indigo-400">(prom. facturas previas)</span>
+                                         </p>
+                                       ))}
+                                     </div>
+                                   )}
+
+                                   {/* Mode toggle */}
+                                   <div className="flex items-center gap-2 p-2 bg-white border rounded">
+                                     <button
+                                       onClick={() => updatePartPrice(item.id, 'isRepairable', false)}
+                                       className={`flex-1 flex items-center justify-center gap-1 h-7 rounded text-[10px] font-bold border transition-all ${
+                                         !isRepairable ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-slate-500 border-slate-200 hover:border-orange-300'
+                                       }`}
+                                     >
+                                       <Package className="h-3 w-3"/> Repuesto Nuevo
+                                     </button>
+                                     <button
+                                       onClick={() => updatePartPrice(item.id, 'isRepairable', true)}
+                                       className={`flex-1 flex items-center justify-center gap-1 h-7 rounded text-[10px] font-bold border transition-all ${
+                                         isRepairable ? 'bg-green-600 text-white border-green-600' : 'bg-white text-slate-500 border-slate-200 hover:border-green-400'
+                                       }`}
+                                     >
+                                       <Hammer className="h-3 w-3"/> Se puede Reparar
+                                     </button>
+                                   </div>
+
+                                   {!isRepairable ? (
+                                     <div className="bg-orange-50 p-2.5 rounded border border-orange-200 space-y-2">
+                                       <div className="flex items-center justify-between">
+                                         <Label className="text-[10px] uppercase font-bold text-orange-600 flex items-center gap-1"><Package className="h-3 w-3"/> Repuesto Nuevo</Label>
+                                         <div className="flex items-center space-x-1">
+                                           <Checkbox id={`pnd-${item.id}`} checked={pa.isPending} onCheckedChange={(c) => updatePartPrice(item.id, 'isPending', !!c)} />
+                                           <Label htmlFor={`pnd-${item.id}`} className="text-[10px] font-bold text-orange-800 cursor-pointer">Pendiente</Label>
+                                         </div>
+                                       </div>
+                                       <Input placeholder="Descripción del repuesto..." className="h-7 text-xs bg-white" value={pa.desc} onChange={(e) => updatePartPrice(item.id, 'desc', e.target.value)} />
+                                       <CurrencyInput placeholder="0" disabled={pa.isPending} className={`h-7 text-xs font-semibold ${pa.isPending ? 'opacity-50' : 'bg-white'}`} value={pa.price ? parseFloat(pa.price) : 0} onChange={(val) => updatePartPrice(item.id, 'price', val.toString())} />
+                                     </div>
+                                   ) : (
+                                     <div className="bg-green-50 p-2.5 rounded border border-green-200 space-y-2">
+                                       <div className="flex items-center justify-between">
+                                         <Label className="text-[10px] uppercase font-bold text-green-700 flex items-center gap-1"><Hammer className="h-3 w-3"/> Reparación</Label>
+                                         <div className="flex items-center space-x-1">
+                                           <Checkbox id={`rpnd-${item.id}`} checked={pa.repairPending} onCheckedChange={(c) => updatePartPrice(item.id, 'repairPending', !!c)} />
+                                           <Label htmlFor={`rpnd-${item.id}`} className="text-[10px] font-bold text-green-800 cursor-pointer">Pendiente</Label>
+                                         </div>
+                                       </div>
+                                       <Input placeholder="Descripción de la reparación..." className="h-7 text-xs bg-white" value={pa.desc} onChange={(e) => updatePartPrice(item.id, 'desc', e.target.value)} />
+                                       <CurrencyInput placeholder="0" disabled={pa.repairPending} className={`h-7 text-xs font-semibold ${pa.repairPending ? 'opacity-50' : 'bg-white'}`} value={pa.repairPrice ? parseFloat(pa.repairPrice) : 0} onChange={(val) => updatePartPrice(item.id, 'repairPrice', val.toString())} />
+                                     </div>
+                                   )}
+                                 </div>
+                               )
+                             })()}
+                          </div>
+                        ))}
+
+                        {/* Additional Parts block */}
+                        {adds.map((addPart, aIdx) => {
+                           const globalIdx = additionalParts.findIndex(p => p === addPart)
+                           return (
+                             <div key={`add-${aIdx}`} className="p-4 bg-slate-50 flex flex-col md:flex-row md:items-end gap-3 rounded-md mx-4 my-2 border border-dashed shadow-sm">
+                                <div className="flex-1">
+                                  <Label className="text-xs">Repuesto Especial / Extra</Label>
+                                  <Input 
+                                    placeholder="Ej. Líquido de frenos DOT4..." 
+                                    className="h-8 mt-1 bg-white" 
+                                    value={addPart.description}
+                                    onChange={(e) => updateAdditionalPart(globalIdx, 'description', e.target.value)}
+                                  />
+                                </div>
+                                <div className="w-full md:w-1/3">
+                                  <div className="flex items-center justify-between">
+                                     <Label className="text-xs">Precio</Label>
+                                     <div className="flex items-center space-x-1 mb-1">
+                                        <Checkbox 
+                                           id={`apnd-${globalIdx}`} 
+                                           checked={addPart.isPending}
+                                           onCheckedChange={(c) => updateAdditionalPart(globalIdx, 'isPending', !!c)}
+                                        />
+                                        <Label htmlFor={`apnd-${globalIdx}`} className="text-[10px] font-bold text-slate-500 cursor-pointer">Pendiente</Label>
+                                      </div>
+                                  </div>
+                                  <CurrencyInput 
+                                    placeholder="0" 
+                                    disabled={addPart.isPending}
+                                    className={`h-8 bg-white ${addPart.isPending ? 'opacity-50' : ''}`} 
+                                    value={addPart.price ? parseFloat(addPart.price) : 0}
+                                    onChange={(val) => updateAdditionalPart(globalIdx, 'price', val.toString())}
+                                  />
+                                </div>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 md:mb-0 mb-4 self-end md:self-auto" onClick={() => removeAdditionalPart(globalIdx)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                             </div>
+                           )
+                        })}
+
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+
+              {review.generalObservations && (
+                <Card>
+                  <CardHeader><CardTitle className="text-sm">Observaciones del Técnico</CardTitle></CardHeader>
+                  <CardContent><p className="text-sm text-slate-700 italic border-l-4 border-slate-300 pl-4 py-1">{review.generalObservations}</p></CardContent>
+                </Card>
+              )}
+            </div>
+
+            <aside className="sticky top-6 space-y-4">
+              <Card className="border-blue-200 shadow-lg overflow-hidden">
+                <div className="bg-blue-600 px-4 py-3 text-white">
+                  <h3 className="font-bold flex items-center gap-2">
+                    <FileText className="h-5 w-5" /> Vista Previa Cotización
+                  </h3>
+                </div>
+                <CardContent className="p-0">
+                  <div className="max-h-[50vh] overflow-y-auto divide-y">
+                     {(() => {
+                        let totalVal = 0;
+                        const items: {desc: string, price: number, isPending: boolean}[] = []
+
+                        review.categories.forEach(cat => {
+                           cat.items.forEach(item => {
+                              if (item.laborCost > 0) {
+                                 items.push({ desc: `MO: ${item.name}`, price: item.laborCost, isPending: false })
+                                 totalVal += item.laborCost
+                              }
+                              if (item.needsPart) {
+                                 const pArr = partPrices[item.id]
+                                 if (pArr?.isRepairable) {
+                                    const rp = pArr.repairPrice ? parseFloat(pArr.repairPrice) : 0
+                                    items.push({ desc: `Reparación: ${pArr.desc || item.name}`, price: rp, isPending: pArr.repairPending })
+                                    totalVal += pArr.repairPending ? 0 : rp
+                                 } else {
+                                    const pp = pArr?.price ? parseFloat(pArr.price) : 0
+                                    items.push({ desc: pArr?.desc || item.name, price: pp, isPending: pArr?.isPending || false })
+                                    totalVal += pArr?.isPending ? 0 : pp
+                                 }
+                              }
+                           })
+                           additionalParts.filter(p => p.category === cat.title).forEach(p => {
+                              const pp = p.price ? parseFloat(p.price) : 0
+                              items.push({ desc: p.description || "Parte adicional", price: pp, isPending: p.isPending })
+                              totalVal += p.isPending ? 0 : pp
+                           })
+                        })
+
+                        return (
+                          <>
+                            {items.length === 0 ? (
+                               <p className="p-8 text-center text-slate-400 text-sm italic">Sin ítems seleccionados</p>
+                            ) : (
+                               items.map((it, idx) => (
+                                 <div key={idx} className="p-3 flex justify-between gap-2 text-xs hover:bg-slate-50">
+                                   <span className="text-slate-600 flex-1">{it.desc}</span>
+                                   <span className="font-bold text-slate-900 whitespace-nowrap">
+                                      {it.isPending ? <span className="text-orange-500 font-mono">PENDIENTE</span> : `$${it.price.toLocaleString('es-CO')}`}
+                                   </span>
+                                 </div>
+                               ))
+                            )}
+                            <div className="p-4 bg-slate-50 border-t">
+                               <div className="flex justify-between items-center text-lg font-black text-blue-700">
+                                  <span>TOTAL ESTIMADO</span>
+                                  <span>${totalVal.toLocaleString('es-CO')}</span>
+                               </div>
+                               <p className="text-[10px] text-slate-400 mt-1 uppercase">* No incluye IVA, el total puede variar al finalizar.</p>
+                            </div>
+                          </>
+                        )
+                     })()}
+                  </div>
+                  <div className="p-4 bg-white">
+                    <Button 
+                      size="lg" 
+                      className="bg-green-600 hover:bg-green-700 text-white w-full" 
+                      onClick={handleConvertToQuotation} 
+                      disabled={converting}
+                    >
+                      <CheckCircle className="h-5 w-5 mr-2" />
+                      {converting ? "Procesando..." : "Finalizar y Generar"}
                     </Button>
                   </div>
-                  <CardContent className="p-0">
-                    
-                    {/* Mostrar DTCs */}
-                    {hasDtcs && (
-                      <div className="p-4 bg-blue-50 border-b border-blue-100">
-                        <h4 className="text-xs font-bold text-blue-800 uppercase mb-3">Códigos de Falla Escáner</h4>
-                        <div className="space-y-2">
-                          {cat.dtcCodes!.map((dtc, dtcIdx) => (
-                             <div key={dtcIdx} className="flex gap-3 bg-white p-2 rounded border border-blue-200 shadow-sm">
-                               <div className="bg-blue-600 text-white font-mono px-3 py-1 rounded text-sm font-bold flex items-center">{dtc.code}</div>
-                               <div className="flex-1 flex items-center text-sm">{dtc.description || <i className="text-slate-400">Sin descripción aportada por el técnico</i>}</div>
-                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                </CardContent>
+              </Card>
 
-                    {/* Fails */}
-                    <div className="divide-y">
-                      {failedItems.map((item, iIdx) => (
-                        <div key={iIdx} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                           <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                {item.status === 'urgent' ? 
-                                  <XCircle className="h-4 w-4 text-red-500" /> : 
-                                  <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                                }
-                                 <span className="flex items-center gap-1 font-semibold text-slate-800">{item.name}</span>
-                              </div>
-                              <div className="flex flex-col gap-2 text-sm text-slate-600 pl-6">
-                                 <Label className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-                                   <Wrench className="h-3 w-3"/> MANO DE OBRA 
-                                   {item.adminPricesLabor && <span className="ml-2 text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded border border-orange-200">El técnico delegó este costo</span>}
-                                 </Label>
-                                 <CurrencyInput 
-                                   className="h-8 text-sm w-32 font-bold" 
-                                   value={item.laborCost} 
-                                   onChange={(val) => updateLaborCost(idx, iIdx, val)} 
-                                 />
-                              </div>
-                           </div>
-
-                           {/* Part pricing block */}
-                           {item.needsPart && (() => {
-                             const pa = partPrices[item.id] || { price: '', desc: '', isPending: false, isRepairable: false, repairPrice: '', repairPending: false }
-                             const suggestions = getSuggestionsForPart(item.name)
-                             const isRepairable = pa.isRepairable
-                             return (
-                               <div className="w-full md:w-auto md:min-w-[320px] space-y-2">
-
-                                 {/* Suggestions panel */}
-                                 {suggestions.length > 0 && (
-                                   <div className="bg-indigo-50 border border-indigo-200 rounded p-2 text-[10px] space-y-1">
-                                     <p className="text-indigo-700 font-bold flex items-center gap-1"><TrendingDown className="h-3 w-3" /> Precios históricos ({vehicle?.brand} {vehicle?.model})</p>
-                                     {suggestions.map((s, si) => (
-                                       <p key={si} className="text-indigo-600">
-                                         • {s.desc}: <span className="font-semibold">${s.price.toLocaleString('es-CO')}</span> <span className="text-indigo-400">(prom. facturas previas)</span>
-                                       </p>
-                                     ))}
-                                   </div>
-                                 )}
-
-                                 {/* Mode toggle */}
-                                 <div className="flex items-center gap-2 p-2 bg-white border rounded">
-                                   <button
-                                     onClick={() => updatePartPrice(item.id, 'isRepairable', false)}
-                                     className={`flex-1 flex items-center justify-center gap-1 h-7 rounded text-[10px] font-bold border transition-all ${
-                                       !isRepairable ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-slate-500 border-slate-200 hover:border-orange-300'
-                                     }`}
-                                   >
-                                     <Package className="h-3 w-3"/> Repuesto Nuevo
-                                   </button>
-                                   <button
-                                     onClick={() => updatePartPrice(item.id, 'isRepairable', true)}
-                                     className={`flex-1 flex items-center justify-center gap-1 h-7 rounded text-[10px] font-bold border transition-all ${
-                                       isRepairable ? 'bg-green-600 text-white border-green-600' : 'bg-white text-slate-500 border-slate-200 hover:border-green-400'
-                                     }`}
-                                   >
-                                     <Hammer className="h-3 w-3"/> Se puede Reparar
-                                   </button>
-                                 </div>
-
-                                 {!isRepairable ? (
-                                   <div className="bg-orange-50 p-2.5 rounded border border-orange-200 space-y-2">
-                                     <div className="flex items-center justify-between">
-                                       <Label className="text-[10px] uppercase font-bold text-orange-600 flex items-center gap-1"><Package className="h-3 w-3"/> Repuesto Nuevo</Label>
-                                       <div className="flex items-center space-x-1">
-                                         <Checkbox id={`pnd-${item.id}`} checked={pa.isPending} onCheckedChange={(c) => updatePartPrice(item.id, 'isPending', !!c)} />
-                                         <Label htmlFor={`pnd-${item.id}`} className="text-[10px] font-bold text-orange-800 cursor-pointer">Pendiente</Label>
-                                       </div>
-                                     </div>
-                                     <Input placeholder="Descripción del repuesto..." className="h-7 text-xs bg-white" value={pa.desc} onChange={(e) => updatePartPrice(item.id, 'desc', e.target.value)} />
-                                     <CurrencyInput placeholder="0" disabled={pa.isPending} className={`h-7 text-xs font-semibold ${pa.isPending ? 'opacity-50' : 'bg-white'}`} value={pa.price ? parseFloat(pa.price) : 0} onChange={(val) => updatePartPrice(item.id, 'price', val.toString())} />
-                                   </div>
-                                 ) : (
-                                   <div className="bg-green-50 p-2.5 rounded border border-green-200 space-y-2">
-                                     <div className="flex items-center justify-between">
-                                       <Label className="text-[10px] uppercase font-bold text-green-700 flex items-center gap-1"><Hammer className="h-3 w-3"/> Reparación</Label>
-                                       <div className="flex items-center space-x-1">
-                                         <Checkbox id={`rpnd-${item.id}`} checked={pa.repairPending} onCheckedChange={(c) => updatePartPrice(item.id, 'repairPending', !!c)} />
-                                         <Label htmlFor={`rpnd-${item.id}`} className="text-[10px] font-bold text-green-800 cursor-pointer">Pendiente</Label>
-                                       </div>
-                                     </div>
-                                     <Input placeholder="Descripción de la reparación..." className="h-7 text-xs bg-white" value={pa.desc} onChange={(e) => updatePartPrice(item.id, 'desc', e.target.value)} />
-                                     <CurrencyInput placeholder="0" disabled={pa.repairPending} className={`h-7 text-xs font-semibold ${pa.repairPending ? 'opacity-50' : 'bg-white'}`} value={pa.repairPrice ? parseFloat(pa.repairPrice) : 0} onChange={(val) => updatePartPrice(item.id, 'repairPrice', val.toString())} />
-                                   </div>
-                                 )}
-                               </div>
-                             )
-                           })()}
-                        </div>
-                      ))}
-
-                      {/* Additional Parts block */}
-                      {adds.map((addPart, aIdx) => {
-                         const globalIdx = additionalParts.findIndex(p => p === addPart)
-                         return (
-                           <div key={`add-${aIdx}`} className="p-4 bg-slate-50 flex flex-col md:flex-row md:items-end gap-3 rounded-md mx-4 my-2 border border-dashed shadow-sm">
-                              <div className="flex-1">
-                                <Label className="text-xs">Repuesto Especial / Extra</Label>
-                                <Input 
-                                  placeholder="Ej. Líquido de frenos DOT4..." 
-                                  className="h-8 mt-1 bg-white" 
-                                  value={addPart.description}
-                                  onChange={(e) => updateAdditionalPart(globalIdx, 'description', e.target.value)}
-                                />
-                              </div>
-                              <div className="w-full md:w-1/3">
-                                <div className="flex items-center justify-between">
-                                   <Label className="text-xs">Precio</Label>
-                                   <div className="flex items-center space-x-1 mb-1">
-                                      <Checkbox 
-                                         id={`apnd-${globalIdx}`} 
-                                         checked={addPart.isPending}
-                                         onCheckedChange={(c) => updateAdditionalPart(globalIdx, 'isPending', !!c)}
-                                      />
-                                      <Label htmlFor={`apnd-${globalIdx}`} className="text-[10px] font-bold text-slate-500 cursor-pointer">Pendiente</Label>
-                                    </div>
-                                </div>
-                                <CurrencyInput 
-                                  placeholder="0" 
-                                  disabled={addPart.isPending}
-                                  className={`h-8 bg-white ${addPart.isPending ? 'opacity-50' : ''}`} 
-                                  value={addPart.price ? parseFloat(addPart.price) : 0}
-                                  onChange={(val) => updateAdditionalPart(globalIdx, 'price', val.toString())}
-                                />
-                              </div>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 md:mb-0 mb-4 self-end md:self-auto" onClick={() => removeAdditionalPart(globalIdx)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                           </div>
-                         )
-                      })}
-
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-
-          {review.generalObservations && (
-            <Card>
-              <CardHeader><CardTitle className="text-sm">Observaciones del Técnico</CardTitle></CardHeader>
-              <CardContent><p className="text-sm text-slate-700 italic border-l-4 border-slate-300 pl-4 py-1">{review.generalObservations}</p></CardContent>
-            </Card>
-          )}
-
-          <div className="flex justify-end pt-4 bg-white p-4 rounded border sticky bottom-4 shadow-lg">
-            <Button size="lg" className="bg-green-600 hover:bg-green-700 text-white w-full md:w-auto" onClick={handleConvertToQuotation} disabled={converting}>
-              <FileText className="h-5 w-5 mr-2" />
-              {converting ? "Procesando..." : "Convertir a Cotización Final"}
-            </Button>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-blue-800 space-y-2">
+                 <p className="font-bold flex items-center gap-1"><Package className="h-3 w-3"/> Re-cotización dinámica</p>
+                 <p>Al hacer clic en Finalizar, los ítems se agregarán a la orden actual. Puedes seguir editándolos desde la vista principal de la orden.</p>
+              </div>
+            </aside>
           </div>
         </div>
       </DashboardLayout>

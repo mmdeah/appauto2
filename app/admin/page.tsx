@@ -273,6 +273,48 @@ export default function AdminPage() {
         }
       })
 
+      // Abrir WhatsApp con el resumen
+      const { order, vehicle, client } = deliveryOrderDetails
+      if (client && vehicle && order) {
+        const approvedServices = (order.services || [])
+        const quotationItems = order.quotation?.items || []
+        
+        let servicesText = ""
+        approvedServices.forEach(s => {
+          servicesText += `- ${s.description}: Finalizado\n`
+        })
+
+        let valuesText = ""
+        quotationItems.forEach(it => {
+          const itemTotal = it.total + (it.includesTax !== false ? it.total * 0.19 : 0)
+          valuesText += `- ${it.description}: ${formatCurrency(itemTotal)}\n`
+        })
+
+        const total = order.quotation?.total || 0
+        
+        const message = `Hola ${client.name}, el control de calidad de tu vehículo ${vehicle.licensePlate} ha sido completado con éxito.
+
+RESUMEN DE SERVICIOS REALIZADOS:
+${servicesText}
+DETALLE DE VALORES:
+${valuesText}
+TOTAL A PAGAR: ${formatCurrency(total)}
+
+INFORMACIÓN DE ENTREGA:
+- Limpieza: ${qcWashed ? 'Ok' : 'No aplica'}
+- Sin herramientas: Ok
+- Ensamblado: Ok
+- Falla corregida: ${qcRoadTest ? 'Ok' : 'No aplica'}
+
+Observaciones: ${qcNote || 'Sin observaciones adicionales'}
+
+Su vehículo se encuentra listo para el retiro.`
+
+        const phone = client.phone.replace(/\D/g, '')
+        const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+        window.open(url, '_blank')
+      }
+
       setDeliveryDialogOpen(false)
       setSelectedOrderForDelivery(null)
       setDeliveryOrderDetails({ order: null, vehicle: null, client: null, technician: null })
