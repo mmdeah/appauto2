@@ -710,24 +710,22 @@ TOTAL: ${formatCurrency(order.quotation.total)}
     if (review) {
         messageText += `*REPORTE DIAGNÓSTICO DEL VEHÍCULO:*\n\n`
         review.categories.forEach(cat => {
-           // Skip if category has no items or all items are null (not reviewed)
-           const reviewedItems = cat.items.filter(i => i.status !== null)
-           if (reviewedItems.length === 0) return 
-           
-           const fails = cat.items.filter(i => i.status !== 'ok' && i.status !== null)
-           
-           if (fails.length > 0) {
-             // Category has issues - show on its own line then list items
-             messageText += `*${cat.title}:*\n`
-             fails.forEach(fail => {
-               const priorityPrefix = fail.status === 'urgent' ? 'Urgente:' : 'Atención:'
-               messageText += `  - ${priorityPrefix} ${fail.name}\n`
-             })
-             messageText += `\n`
-           } else {
-             // Category is fine - show inline with Ok
-             messageText += `*${cat.title}:* Ok\n`
-           }
+            // Solo incluimos la categoría si algún ítem fue explícitamente marcado como ok, warning o urgent
+            const reviewedItems = cat.items.filter(i => i.status === 'ok' || i.status === 'warning' || i.status === 'urgent')
+            if (reviewedItems.length === 0) return 
+            
+            const fails = reviewedItems.filter(i => i.status !== 'ok')
+            
+            if (fails.length > 0) {
+              messageText += `*${cat.title}:*\n`
+              fails.forEach(fail => {
+                const priorityPrefix = fail.status === 'urgent' ? 'Urgente:' : 'Atención:'
+                messageText += `  - ${priorityPrefix} ${fail.name}\n`
+              })
+              messageText += `\n`
+            } else {
+              messageText += `*${cat.title}:* Ok\n`
+            }
         })
         if (review.generalObservations && review.generalObservations.trim() !== '') {
             messageText += `\n*Observaciones:*\n${review.generalObservations}\n`
@@ -745,10 +743,26 @@ TOTAL: ${formatCurrency(order.quotation.total)}
             if (item.unitPrice === 0 && item.description.includes("(PENDIENTE")) {
                 text += `- ${item.quantity}x ${item.description}: Pendiente por cotizar\n`
             } else {
+                let itemDesc = item.description
+                
+                // Si es el ítem de escáner y es Mano de Obra, intentamos pegarle los códigos
+                if (item.description.includes("Mano de obra: Revisión Especial (Escáner)")) {
+                   const dtcCodes = review?.categories.filter(c => c.isEscaner).flatMap(c => c.dtcCodes?.map(d => d.code) || []).join(', ')
+                   if (dtcCodes && !itemDesc.includes("(Códigos:")) {
+                      itemDesc += ` (Códigos: ${dtcCodes})`
+                   }
+                }
+
+                // Omitimos ítems de $0 que sean redundantes del diagnóstico si ya lo pusimos en la MO
+                if (item.unitPrice === 0 && item.description.includes("Revisión y Diagnóstico Avanzado")) {
+                   return
+                }
+
                 const rowTotal = item.total + ((item.includesTax !== false) ? item.total * 0.19 : 0)
                 catTotal += rowTotal
-                text += `- ${item.quantity}x ${item.description}: ${formatCurrency(rowTotal)}\n`
+                text += `- ${item.quantity}x ${itemDesc}: ${formatCurrency(rowTotal)}\n`
             }
+
         })
         if (catName) {
            text += `_Subtotal: ${formatCurrency(catTotal)}_\n\n`
