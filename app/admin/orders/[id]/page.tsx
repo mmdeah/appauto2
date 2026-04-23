@@ -735,6 +735,9 @@ TOTAL: ${formatCurrency(order.quotation.total)}
         messageText += `*REPORTE DIAGNÓSTICO DEL VEHÍCULO:*\n\n`
         review.categories.forEach(cat => {
             // Solo incluimos la categoría si algún ítem fue explícitamente marcado (evitar null o undefined)
+            // Y respetamos si el admin decidió OCULTARLA (includedInWhatsApp === false)
+            if (cat.includedInWhatsApp === false) return
+
             const reviewedItems = cat.items.filter(i => 
               i.status === 'ok' || 
               i.status === 'warning' || 

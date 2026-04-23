@@ -253,6 +253,7 @@ export interface ReviewCategory {
   isEscaner?: boolean;
   items: ReviewItem[];
   dtcCodes?: DTCCode[];
+  includedInWhatsApp?: boolean; // Nuevo campo para control de visibilidad
 }
 
 export interface PreventiveReview {

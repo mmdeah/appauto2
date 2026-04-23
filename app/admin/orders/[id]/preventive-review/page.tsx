@@ -143,6 +143,16 @@ export default function AdminPreventiveReview() {
     if (!review) return
     const newRev = { ...review }
     newRev.categories[catIdx].items[itemIdx].laborCost = val
+    // Si hay un costo, forzamos que se incluya en WhatsApp
+    if (val > 0) newRev.categories[catIdx].includedInWhatsApp = true
+    setReview(newRev)
+  }
+
+  const toggleWhatsAppVisibility = (catIdx: number) => {
+    if (!review) return
+    const newRev = { ...review }
+    const cat = newRev.categories[catIdx]
+    cat.includedInWhatsApp = cat.includedInWhatsApp === false ? true : false
     setReview(newRev)
   }
 
@@ -342,18 +352,45 @@ export default function AdminPreventiveReview() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             <div className="lg:col-span-2 space-y-6">
-              {review.categories.map((cat, idx) => {
+              {review.categories
+                .filter(cat => cat.items.some(i => i.status !== null)) // Solo categorías que el técnico SI revisó
+                .map((cat, idx) => {
+                // Encontrar el índice real en el array original (por si el filter lo cambió)
+                const realCatIdx = review.categories.findIndex(c => c.title === cat.title)
+                
                 // Filtrar items que fallaron o tienen componentes DTC
                 const failedItems = cat.items.filter(item => item.status !== 'ok' && item.status !== null)
                 const hasDtcs = cat.isEscaner && cat.dtcCodes && cat.dtcCodes.length > 0
                 const adds = additionalParts.filter(p => p.category === cat.title)
                 
-                if (failedItems.length === 0 && !hasDtcs && adds.length === 0) return null; // No need to show perfect categories unless adding parts
+                // Determinar si la categoría tiene costos (para bloquear el checkbox)
+                const hasCosts = cat.items.some(i => i.laborCost > 0) || 
+                                 cat.items.some(i => {
+                                    const p = partPrices[i.id]
+                                    return (p?.price && parseFloat(p.price) > 0) || (p?.repairPrice && parseFloat(p.repairPrice) > 0)
+                                 }) ||
+                                 adds.some(p => p.price && parseFloat(p.price) > 0)
+
+                // Si no tiene valor explícito, inicializar según el contenido
+                const isIncluded = cat.includedInWhatsApp !== false 
 
                 return (
-                  <Card key={idx} className="border-slate-200">
+                  <Card key={idx} className={`border-slate-200 transition-all ${!isIncluded ? 'opacity-60 grayscale-[0.5]' : ''}`}>
                     <div className="bg-slate-50 border-b px-4 py-3 font-bold uppercase text-sm flex justify-between items-center group">
-                      {cat.title}
+                      <div className="flex items-center gap-3">
+                         <div className="flex items-center gap-2 bg-white px-2 py-1 rounded border shadow-sm group-hover:border-green-300 transition-colors">
+                            <Checkbox 
+                               id={`wa-show-${idx}`} 
+                               checked={isIncluded || hasCosts}
+                               onCheckedChange={() => toggleWhatsAppVisibility(realCatIdx)}
+                               disabled={hasCosts}
+                            />
+                            <Label htmlFor={`wa-show-${idx}`} className="text-[10px] text-green-700 cursor-pointer flex items-center gap-1 font-black">
+                               <MessageCircle className="h-3.5 w-3.5" /> WHATSAPP
+                            </Label>
+                         </div>
+                         {cat.title}
+                      </div>
                       <Button variant="outline" size="sm" className="h-7 text-xs bg-white text-blue-600 border-blue-200 hover:bg-blue-50" onClick={() => addAdditionalPart(cat.title)}>
                         <PackagePlus className="h-3 w-3 mr-1" /> Repuesto Extra
                       </Button>
