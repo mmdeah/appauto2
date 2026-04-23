@@ -51,6 +51,9 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
   
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [order, setOrder] = useState<any>(null)
+  const [showMarkAllModal, setShowMarkAllModal] = useState(false)
+
 
   useEffect(() => {
     if (orderId) loadData(orderId)
@@ -58,12 +61,15 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
 
   const loadData = async (oid: string) => {
     try {
-      const [cats, specs] = await Promise.all([
+      const [cats, specs, orderData] = await Promise.all([
         getChecklistCategories(),
-        getSpecialServices()
+        getSpecialServices(),
+        getServiceOrderById(oid)
       ])
       setCategories(cats)
       setSpecialServices(specs)
+      setOrder(orderData)
+
 
       // Initialize states
       const initialItems: Record<string, Record<string, ReviewItemState>> = {}
@@ -173,15 +179,18 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
       return { ...prev, [catTitle]: arr }
     })
 
-    if (val) {
-      const nextId = `dtc-${catTitle}-${entryIndex}-${digitIndex + 1}`
-      const el = document.getElementById(nextId)
-      if (el) el.focus()
-    }
-  }
-
-  const handleFocusDtcDigit = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.target.select();
+  const handleMarkAllAsOk = () => {
+    const newItems = { ...itemStates }
+    categories.forEach(cat => {
+      cat.items.forEach(item => {
+        if (!newItems[cat.title][item].status) {
+          newItems[cat.title][item].status = 'ok'
+        }
+      })
+    })
+    setItemStates(newItems)
+    setShowMarkAllModal(false)
+    toast.success("Todos los ítems pendientes se marcaron como OK")
   }
 
   const handleSave = async () => {
@@ -298,8 +307,35 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
            <div className="flex items-center gap-1 text-yellow-400"><AlertTriangle className="h-4 w-4"/> Revisar Pronto</div>
            <div className="flex items-center gap-1 text-red-400"><XCircle className="h-4 w-4"/> Urgente</div>
          </div>
-         <p className="text-[10px] text-slate-400 mt-2">Nota: Puedes omitir (dejar en blanco) los campos que no revisaste o no aplican.</p>
-      </div>
+         <div className="flex gap-2 items-center">
+            <Button 
+               variant="outline" 
+               size="sm" 
+               type="button"
+               className="h-8 bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+               onClick={() => setShowMarkAllModal(true)}
+            >
+               <Check className="h-4 w-4 mr-1" /> Marcar Todo como OK
+       </div>
+
+       {order && order.services && order.services.length > 0 && (
+         <div className="px-4 mb-4">
+           <Card className="border-green-100 bg-green-50/20">
+             <CardContent className="p-3">
+               <h4 className="text-[10px] font-bold text-green-700 uppercase mb-2">Servicios Programados para esta Orden</h4>
+               <div className="flex flex-wrap gap-2">
+                 {order.services.map((s: any) => (
+                   <div key={s.id} className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${s.completed ? 'bg-green-100 text-green-800 border-green-200' : 'bg-slate-100 text-slate-800 border-slate-200'}`}>
+                     {s.completed ? '✓ ' : ''}{s.description}
+                   </div>
+                 ))}
+               </div>
+             </CardContent>
+           </Card>
+         </div>
+       )}
+
+
 
       <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
         {categories.map((cat, idx) => (
@@ -559,6 +595,27 @@ export function PreventiveReviewForm({ orderId, onSaved }: PreventiveReviewFormP
           </CardContent>
         </Card>
       </div>
+      {/* Modal Confirmación Marcar Todo */}
+      {showMarkAllModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+           <Card className="max-w-md w-full shadow-2xl">
+              <CardHeader className="pb-2">
+                 <CardTitle className="text-lg">¿Marcar todo como revisado?</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                 <p className="text-sm text-slate-600">
+                   Se marcarán como <strong>[En Buen Estado]</strong> todos los ítems que aún no han sido revisados en esta revisión preventiva.
+                   ¿Confirmas que realizaste toda la revisión programada?
+                 </p>
+                 <div className="flex justify-end gap-3 pt-2">
+                   <Button variant="ghost" size="sm" onClick={() => setShowMarkAllModal(false)}>Cancelar</Button>
+                   <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={handleMarkAllAsOk}>Sí, marcar todo</Button>
+                 </div>
+              </CardContent>
+           </Card>
+        </div>
+      )}
     </div>
   )
 }
+

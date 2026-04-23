@@ -230,11 +230,30 @@ export default function ReportsPage() {
                                   })}
                                 </p>
                               </div>
-                              <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700 flex-shrink-0" title="Ver Revisión">
-                                <Link href={`/admin/orders/${pr.serviceOrderId}/preventive-review`}>
-                                  Ver y Cotizar
-                                </Link>
-                              </Button>
+                              <div className="flex items-center gap-1">
+                                <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700 flex-shrink-0" title="Ver Revisión">
+                                  <Link href={`/admin/orders/${pr.serviceOrderId}/preventive-review`}>
+                                    Ver y Cotizar
+                                  </Link>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={async () => {
+                                    if (confirm("¿Estás seguro de que deseas eliminar este registro de revisión?")) {
+                                      const { deletePreventiveReview } = await import("@/lib/db")
+                                      await deletePreventiveReview(pr.id)
+                                      toast.success("Registro eliminado")
+                                      window.location.reload()
+                                    }
+                                  }}
+                                  className="flex-shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  title="Eliminar registro"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+
                             </div>
                             {pr.generalObservations && (
                               <>

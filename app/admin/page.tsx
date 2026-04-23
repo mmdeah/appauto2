@@ -276,35 +276,36 @@ export default function AdminPage() {
       // Abrir WhatsApp con el resumen
       const { order, vehicle, client } = deliveryOrderDetails
       if (client && vehicle && order) {
-        const approvedServices = (order.services || [])
+        // Filtrar solo los servicios que tengan al menos un ítem aprobado (status ok/approved)
+        const approvedServices = (order.services || []).filter(
+          (s) => s.status && (s.status === 'ok' || s.status === 'approved')
+        )
         const quotationItems = order.quotation?.items || []
-        
-        let servicesText = ""
-        approvedServices.forEach(s => {
-          servicesText += `- ${s.description}: Finalizado\n`
-        })
 
-        let valuesText = ""
-        quotationItems.forEach(it => {
-          const itemTotal = it.total + (it.includesTax !== false ? it.total * 0.19 : 0)
-          valuesText += `- ${it.description}: ${formatCurrency(itemTotal)}\n`
-        })
+        // Construir texto de servicios solo si existen
+        let servicesSection = ''
+        if (approvedServices.length) {
+          const servicesText = approvedServices
+            .map((s) => `- ${s.description}: Finalizado`)
+            .join('\n')
+          servicesSection = `RESUMEN DE SERVICIOS REALIZADOS:\n${servicesText}\n`
+        }
+
+        // Detalle de valores (siempre se muestra)
+        const valuesText = quotationItems
+          .map((it) => {
+            const itemTotal = it.total + (it.includesTax !== false ? it.total * 0.19 : 0)
+            return `- ${it.description}: ${formatCurrency(itemTotal)}`
+          })
+          .join('\n')
 
         const total = order.quotation?.total || 0
-        
+
         const message = `Hola ${client.name}, el control de calidad de tu vehículo ${vehicle.licensePlate} ha sido completado con éxito.
 
-RESUMEN DE SERVICIOS REALIZADOS:
-${servicesText}
-DETALLE DE VALORES:
-${valuesText}
-TOTAL A PAGAR: ${formatCurrency(total)}
+${servicesSection}DETALLE DE VALORES:\n${valuesText}\nTOTAL A PAGAR: ${formatCurrency(total)}
 
-INFORMACIÓN DE ENTREGA:
-- Limpieza: ${qcWashed ? 'Ok' : 'No aplica'}
-- Sin herramientas: Ok
-- Ensamblado: Ok
-- Falla corregida: ${qcRoadTest ? 'Ok' : 'No aplica'}
+INFORMACIÓN DE ENTREGA:\n- Limpieza: ${qcWashed ? 'Ok' : 'No aplica'}\n- Sin herramientas: Ok\n- Ensamblado: Ok\n- Falla corregida: ${qcRoadTest ? 'Ok' : 'No aplica'}
 
 Observaciones: ${qcNote || 'Sin observaciones adicionales'}
 
@@ -314,6 +315,7 @@ Su vehículo se encuentra listo para el retiro.`
         const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
         window.open(url, '_blank')
       }
+
 
       setDeliveryDialogOpen(false)
       setSelectedOrderForDelivery(null)

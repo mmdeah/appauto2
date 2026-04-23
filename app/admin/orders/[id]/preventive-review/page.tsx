@@ -383,28 +383,31 @@ export default function AdminPreventiveReview() {
 
                       {/* Fails */}
                       <div className="divide-y">
-                        {failedItems.map((item, iIdx) => (
-                          <div key={iIdx} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                             <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  {item.status === 'urgent' ? 
-                                    <XCircle className="h-4 w-4 text-red-500" /> : 
-                                    <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                                  }
-                                   <span className="flex items-center gap-1 font-semibold text-slate-800">{item.name}</span>
-                                </div>
-                                <div className="flex flex-col gap-2 text-sm text-slate-600 pl-6">
-                                   <Label className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-                                     <Wrench className="h-3 w-3"/> MANO DE OBRA 
-                                     {item.adminPricesLabor && <span className="ml-2 text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded border border-orange-200">El técnico delegó este costo</span>}
-                                   </Label>
-                                   <CurrencyInput 
-                                     className="h-8 text-sm w-32 font-bold" 
-                                     value={item.laborCost} 
-                                     onChange={(val) => updateLaborCost(idx, iIdx, val)} 
-                                   />
-                                </div>
-                             </div>
+                        {failedItems.map((item) => {
+                          const originalItemIdx = cat.items.findIndex(i => i.id === item.id);
+                          return (
+                            <div key={item.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                               <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    {item.status === 'urgent' ? 
+                                      <XCircle className="h-4 w-4 text-red-500" /> : 
+                                      <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                                    }
+                                     <span className="flex items-center gap-1 font-semibold text-slate-800">{item.name}</span>
+                                  </div>
+                                  <div className="flex flex-col gap-2 text-sm text-slate-600 pl-6">
+                                     <Label className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                                       <Wrench className="h-3 w-3"/> MANO DE OBRA 
+                                       {item.adminPricesLabor && <span className="ml-2 text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded border border-orange-200">El técnico delegó este costo</span>}
+                                     </Label>
+                                     <CurrencyInput 
+                                       className="h-8 text-sm w-32 font-bold" 
+                                       value={item.laborCost} 
+                                       onChange={(val) => updateLaborCost(idx, originalItemIdx, val)} 
+                                     />
+                                  </div>
+                               </div>
+
 
                              {/* Part pricing block */}
                              {item.needsPart && (() => {

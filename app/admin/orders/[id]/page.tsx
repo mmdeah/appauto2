@@ -710,8 +710,11 @@ TOTAL: ${formatCurrency(order.quotation.total)}
     if (review) {
         messageText += `*REPORTE DIAGNÓSTICO DEL VEHÍCULO:*\n\n`
         review.categories.forEach(cat => {
+           // Skip if category has no items or all items are null (not reviewed)
+           const reviewedItems = cat.items.filter(i => i.status !== null)
+           if (reviewedItems.length === 0) return 
+           
            const fails = cat.items.filter(i => i.status !== 'ok' && i.status !== null)
-           if (cat.items.every(i => i.status === null)) return // Skip if completely unreviewed
            
            if (fails.length > 0) {
              // Category has issues - show on its own line then list items
@@ -731,6 +734,7 @@ TOTAL: ${formatCurrency(order.quotation.total)}
         }
         messageText += `\n`
     }
+
 
     messageText += `*COTIZACIÓN SERVICIOS*\n\n`
 
@@ -1481,9 +1485,57 @@ TOTAL: ${formatCurrency(order.quotation.total)}
               {order.intakePhotos && order.intakePhotos.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Fotos de Ingreso</CardTitle>
-                    <CardDescription>Estado del vehículo al ingresar al taller</CardDescription>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Fotos de Ingreso</CardTitle>
+                        <CardDescription>Estado del vehículo al ingresar al taller</CardDescription>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={async (e) => {
+                            const files = Array.from(e.target.files || [])
+                            if (files.length === 0) return
+                            
+                            setIsSaving(true)
+                            try {
+                              const base64Photos = await Promise.all(
+                                files.map(file => new Promise<string>((resolve) => {
+                                  const reader = new FileReader()
+                                  reader.onloadend = () => resolve(reader.result as string)
+                                  reader.readAsDataURL(file)
+                                }))
+                              )
+                              
+                              const currentPhotos = order.intakePhotos || []
+                              await updateServiceOrder(order.id, {
+                                intakePhotos: [...currentPhotos, ...base64Photos]
+                              })
+                              
+                              toast.success("Fotos agregadas con éxito")
+                              await loadData()
+                            } catch (error) {
+                              console.error("Error al subir fotos:", error)
+                              toast.error("Error al subir fotos")
+                            } finally {
+                              setIsSaving(false)
+                            }
+                          }}
+                          className="hidden"
+                          id="intake-photo-upload"
+                        />
+                        <Button variant="outline" size="sm" asChild>
+                          <label htmlFor="intake-photo-upload" className="cursor-pointer">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Agregar Fotos
+                          </label>
+                        </Button>
+                      </div>
+                    </div>
                   </CardHeader>
+
                   <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {order.intakePhotos.map((photo, index) => (
