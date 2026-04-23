@@ -51,7 +51,7 @@ export function CurrencyInput({
         onChange={handleChange}
         placeholder={placeholder}
         disabled={disabled}
-        className={`pl-7 ${className}`}
+        className={`pl-7 pr-12 ${className}`}
       />
       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
         COP
