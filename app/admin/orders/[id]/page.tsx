@@ -1523,57 +1523,11 @@ TOTAL: ${formatCurrency(order.quotation.total)}
               {order.intakePhotos && order.intakePhotos.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle>Fotos de Ingreso</CardTitle>
-                        <CardDescription>Estado del vehículo al ingresar al taller</CardDescription>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={async (e) => {
-                            const files = Array.from(e.target.files || [])
-                            if (files.length === 0) return
-                            
-                            setIsSaving(true)
-                            try {
-                              const base64Photos = await Promise.all(
-                                files.map(file => new Promise<string>((resolve) => {
-                                  const reader = new FileReader()
-                                  reader.onloadend = () => resolve(reader.result as string)
-                                  reader.readAsDataURL(file)
-                                }))
-                              )
-                              
-                              const currentPhotos = order.intakePhotos || []
-                              await updateServiceOrder(order.id, {
-                                intakePhotos: [...currentPhotos, ...base64Photos]
-                              })
-                              
-                              toast.success("Fotos agregadas con éxito")
-                              await loadData()
-                            } catch (error) {
-                              console.error("Error al subir fotos:", error)
-                              toast.error("Error al subir fotos")
-                            } finally {
-                              setIsSaving(false)
-                            }
-                          }}
-                          className="hidden"
-                          id="intake-photo-upload"
-                        />
-                        <Button variant="outline" size="sm" asChild>
-                          <label htmlFor="intake-photo-upload" className="cursor-pointer">
-                            <Plus className="h-4 w-4 mr-2" />
-                            Agregar Fotos
-                          </label>
-                        </Button>
-                      </div>
+                    <div>
+                      <CardTitle>Fotos de Ingreso</CardTitle>
+                      <CardDescription>Estado del vehículo al ingresar al taller</CardDescription>
                     </div>
                   </CardHeader>
-
                   <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {order.intakePhotos.map((photo, index) => (
@@ -1594,28 +1548,82 @@ TOTAL: ${formatCurrency(order.quotation.total)}
                 </Card>
               )}
 
-              {order.servicePhotos && order.servicePhotos.length > 0 && (
+              {((order.servicePhotos && order.servicePhotos.length > 0) || order.state !== 'completed') && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Fotos del Servicio</CardTitle>
-                    <CardDescription>Fotografías del trabajo realizado</CardDescription>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Fotos del Servicio</CardTitle>
+                        <CardDescription>Fotografías del trabajo realizado</CardDescription>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={async (e) => {
+                            const files = Array.from(e.target.files || [])
+                            if (files.length === 0) return
+                            
+                            setIsSaving(true)
+                            try {
+                              const base64Photos = await Promise.all(
+                                files.map(file => new Promise<string>((resolve) => {
+                                  const reader = new FileReader()
+                                  reader.onloadend = () => resolve(reader.result as string)
+                                  reader.readAsDataURL(file)
+                                }))
+                              )
+                              
+                              const currentPhotos = order.servicePhotos || []
+                              await updateServiceOrder(order.id, {
+                                servicePhotos: [...currentPhotos, ...base64Photos]
+                              })
+                              
+                              toast.success("Fotos de servicio agregadas")
+                              await loadData()
+                            } catch (error) {
+                              console.error("Error al subir fotos:", error)
+                              toast.error("Error al subir fotos")
+                            } finally {
+                              setIsSaving(false)
+                            }
+                          }}
+                          className="hidden"
+                          id="service-photo-upload"
+                        />
+                        <Button variant="outline" size="sm" asChild>
+                          <label htmlFor="service-photo-upload" className="cursor-pointer">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Agregar Fotos
+                          </label>
+                        </Button>
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {order.servicePhotos.map((photo, index) => (
-                        <button
-                          key={index}
-                          onClick={() => openPhotoDialog(photo)}
-                          className="aspect-square bg-muted rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                        >
-                          <img
-                            src={photo || "/placeholder.svg"}
-                            alt={`Foto servicio ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                        </button>
-                      ))}
-                    </div>
+                    {order.servicePhotos && order.servicePhotos.length > 0 ? (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {order.servicePhotos.map((photo, index) => (
+                          <button
+                            key={index}
+                            onClick={() => openPhotoDialog(photo)}
+                            className="aspect-square bg-muted rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                          >
+                            <img
+                              src={photo || "/placeholder.svg"}
+                              alt={`Foto servicio ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                        <Package className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                        <p className="text-sm italic">No hay fotos de los servicios aún</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}

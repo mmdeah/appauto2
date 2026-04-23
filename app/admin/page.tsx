@@ -534,7 +534,7 @@ Su vehículo se encuentra listo para el retiro.`
             <QuickPhotoUpload
               vehicles={vehicles}
               orders={serviceOrders}
-              photoType="intake"
+              photoType="service"
               onUploaded={loadData}
             />
           </div>
