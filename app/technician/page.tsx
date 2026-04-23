@@ -9,11 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Clock, CheckCircle2, Wrench, ListChecks, FileText, Search, AlertCircle, XCircle, User, Calendar, CheckCircle } from 'lucide-react';
-import { getServiceOrdersByTechnicianId, getVehicles, getUsers, getServiceOrders } from '@/lib/db';
-import { getClients } from '@/lib/db';
-import type { ServiceState, Client } from '@/lib/types';
-import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS } from '@/lib/utils-service';
-import type { ServiceOrder, Vehicle } from '@/lib/types';
+import { getServiceOrdersByTechnicianId, getVehicles, getUsers, getServiceOrders, getClients, updateServiceOrder } from '@/lib/db';
+import type { ServiceState, Client, ServiceOrder, Vehicle } from '@/lib/types';
+import { toast } from 'sonner';
+
 import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
 import { QuickPhotoUpload } from '@/components/quick-photo-upload';
@@ -25,6 +24,9 @@ export default function TechnicianPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [orderToMarkAll, setOrderToMarkAll] = useState<ServiceOrder | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
 
   useEffect(() => {
     if (user) {
@@ -55,6 +57,25 @@ export default function TechnicianPage() {
   const getClientName = (clientId: string) => {
     return clients.find(c => c.id === clientId)?.name || "Desconocido";
   };
+
+  const handleMarkAllServicesCompleted = async (order: ServiceOrder) => {
+    if (!order.services || order.services.length === 0) return;
+    
+    setIsUpdating(true);
+    try {
+      const updatedServices = order.services.map(s => ({ ...s, completed: true }));
+      await updateServiceOrder(order.id, { services: updatedServices });
+      toast.success("Todos los servicios marcados como completados");
+      setOrderToMarkAll(null);
+      await loadData();
+    } catch (error) {
+      console.error("Error al actualizar servicios:", error);
+      toast.error("Error al actualizar los servicios");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
 
   const activeOrders = assignedOrders.filter(
     o => !['completed', 'delivered'].includes(o.state)
@@ -257,10 +278,45 @@ export default function TechnicianPage() {
                                       {SERVICE_STATE_LABELS[order.state]}
                                     </Badge>
                                   </div>
-                                  <p className="text-sm text-muted-foreground line-clamp-2">
-                                    {order.description}
-                                  </p>
-                                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                  </div>
+                                  
+                                  {order.services && order.services.length > 0 && (
+                                    <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                                      <p className="text-[11px] font-bold text-slate-400 uppercase mb-1">Servicios Programados:</p>
+                                      <div className="flex flex-wrap gap-1.5 mb-3">
+                                        {order.services.map((s) => (
+                                          <div 
+                                            key={s.id} 
+                                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                                              s.completed 
+                                                ? 'bg-green-50 text-green-700 border-green-200' 
+                                                : 'bg-slate-50 text-slate-600 border-slate-200'
+                                            }`}
+                                          >
+                                            {s.completed ? '✓ ' : ''}{s.description}
+                                          </div>
+                                        ))}
+                                      </div>
+                                      
+                                      {order.services.some(s => !s.completed) && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 text-[10px] px-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:text-green-800"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setOrderToMarkAll(order);
+                                          }}
+                                        >
+                                          <CheckCircle className="h-3 w-3 mr-1" /> Marcar todos como hechos
+                                        </Button>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
+
                                     <span className="flex items-center gap-1">
                                       <User className="h-3 w-3" />
                                       {getClientName(order.clientId)}
@@ -295,7 +351,53 @@ export default function TechnicianPage() {
 
 
         </div>
+
+        {/* Modal de Confirmación Marcar Todos */}
+        {orderToMarkAll && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-200">
+            <Card className="max-w-sm w-full shadow-2xl">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-green-600" />
+                  ¿Marcar todo como hecho?
+                </CardTitle>
+                <CardDescription>
+                  Se marcarán como finalizados todos los servicios programados para la orden de {getVehicleInfo(orderToMarkAll.vehicleId)?.licensePlate}.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2 max-h-40 overflow-y-auto p-2 bg-slate-50 rounded border border-slate-200">
+                  {orderToMarkAll.services?.map((s) => (
+                    <div key={s.id} className="text-xs flex items-center gap-2 text-slate-600">
+                      <div className={`h-2 w-2 rounded-full ${s.completed ? 'bg-green-500' : 'bg-slate-300'}`} />
+                      {s.description}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setOrderToMarkAll(null)}
+                    disabled={isUpdating}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    className="bg-green-600 hover:bg-green-700" 
+                    onClick={() => handleMarkAllServicesCompleted(orderToMarkAll)}
+                    disabled={isUpdating}
+                  >
+                    {isUpdating ? "Actualizando..." : "Sí, marcar todos"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </DashboardLayout>
+
     </ProtectedRoute>
   );
 }
