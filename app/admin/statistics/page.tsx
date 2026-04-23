@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Trash2, Plus, Calendar } from 'lucide-react';
-import { getExpenses, getRevenues, createExpense, deleteExpense, deleteRevenue } from '@/lib/db';
+import { getExpenses, getRevenues, createExpense, deleteExpense, deleteRevenue, createRevenue } from '@/lib/db';
 import { formatCurrency } from '@/lib/utils-service';
 import { useAuth } from '@/lib/auth-context';
 import { CurrencyInput } from '@/components/currency-input';
@@ -25,6 +25,14 @@ const EXPENSE_CATEGORIES = [
   'Alquiler',
   'Servicios Públicos',
   'Salarios',
+  'Otros',
+];
+
+const INCOME_CATEGORIES = [
+  'Venta de Repuestos',
+  'Servicios Rápidos',
+  'Mano de Obra Directa',
+  'Abono de Cliente',
   'Otros',
 ];
 
@@ -272,6 +280,14 @@ export default function StatisticsPage() {
     date: new Date().toISOString().split('T')[0],
   });
 
+  // Formulario de ingresos rápidos
+  const [incomeFormData, setIncomeFormData] = useState({
+    description: '',
+    amount: 0,
+    category: 'Venta de Repuestos',
+    date: new Date().toISOString().split('T')[0],
+  });
+
   useEffect(() => {
     loadData();
   }, [periodType, customStartDate, customEndDate]);
@@ -457,6 +473,33 @@ export default function StatisticsPage() {
     } catch (error) {
       console.error('[v0] Error creating expense:', error);
       alert('Error al crear el gasto. Por favor intenta nuevamente.');
+    }
+  };
+
+  const handleSubmitIncome = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    try {
+      await createRevenue({
+        description: incomeFormData.description,
+        amount: incomeFormData.amount,
+        category: incomeFormData.category,
+        date: incomeFormData.date,
+        createdBy: user.id,
+      });
+
+      setIncomeFormData({
+        description: '',
+        amount: 0,
+        category: 'Venta de Repuestos',
+        date: new Date().toISOString().split('T')[0],
+      });
+
+      await loadData();
+    } catch (error) {
+      console.error('[v0] Error creating income:', error);
+      alert('Error al registrar el ingreso. Por favor intenta nuevamente.');
     }
   };
 
@@ -765,13 +808,16 @@ export default function StatisticsPage() {
             </Card>
           </div>
 
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Registrar Gastos */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Registrar Gastos</CardTitle>
+            <Card className="border-red-100 shadow-sm">
+              <CardHeader className="bg-red-50/50">
+                <CardTitle className="text-red-800 flex items-center gap-2">
+                   <TrendingDown className="h-5 w-5" /> Registrar Gastos
+                </CardTitle>
                 <CardDescription>Agrega un nuevo gasto al sistema</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <form onSubmit={handleSubmitExpense} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="expense-description">Descripción *</Label>
@@ -802,7 +848,7 @@ export default function StatisticsPage() {
                         onValueChange={(value) => setFormData({ ...formData, category: value })}
                       >
                         <SelectTrigger id="expense-category">
-                          <SelectValue />
+                          <SelectValue placeholder="Seleccionar categoría" />
                         </SelectTrigger>
                         <SelectContent>
                           {EXPENSE_CATEGORIES.map((cat) => (
@@ -826,13 +872,85 @@ export default function StatisticsPage() {
                     />
                   </div>
 
-                  <Button type="submit" className="w-full" disabled={!formData.description || formData.amount === 0}>
+                  <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">
                     <Plus className="h-4 w-4 mr-2" />
                     Registrar Gasto
                   </Button>
                 </form>
               </CardContent>
             </Card>
+
+            {/* Registrar Ingresos Rápidos */}
+            <Card className="border-green-100 shadow-sm">
+              <CardHeader className="bg-green-50/50">
+                <CardTitle className="text-green-800 flex items-center gap-2">
+                   <TrendingUp className="h-5 w-5" /> Registrar Ingresos Rápidos
+                </CardTitle>
+                <CardDescription>Ventas o abonos rápidos fuera de una orden</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <form onSubmit={handleSubmitIncome} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="income-description">Descripción *</Label>
+                    <Textarea
+                      id="income-description"
+                      value={incomeFormData.description}
+                      onChange={(e) => setIncomeFormData({ ...incomeFormData, description: e.target.value })}
+                      placeholder="Ej: Venta de filtros..."
+                      rows={3}
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="income-amount">Monto *</Label>
+                      <CurrencyInput
+                        value={incomeFormData.amount}
+                        onChange={(value) => setIncomeFormData({ ...incomeFormData, amount: value })}
+                        placeholder="0"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="income-category">Categoría *</Label>
+                      <Select
+                        value={incomeFormData.category}
+                        onValueChange={(value) => setIncomeFormData({ ...incomeFormData, category: value })}
+                      >
+                        <SelectTrigger id="income-category">
+                          <SelectValue placeholder="Seleccionar categoría" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {INCOME_CATEGORIES.map((cat) => (
+                            <SelectItem key={cat} value={cat}>
+                              {cat}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="income-date">Fecha *</Label>
+                    <Input
+                      id="income-date"
+                      type="date"
+                      value={incomeFormData.date}
+                      onChange={(e) => setIncomeFormData({ ...incomeFormData, date: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Registrar Ingreso
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </DashboardLayout>
     </ProtectedRoute>
