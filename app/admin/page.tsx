@@ -496,7 +496,7 @@ Su vehículo se encuentra listo para el retiro.`
     const phone = client.phone.replace(/\D/g, '')
 
     if (whatsappOption === 'greeting') {
-      message = "¡Hola! Buenos días, nos comunicamos de parte del Taller."
+      message = "¡Buenos días!"
     } else if (whatsappOption === 'reception') {
       message = `Hola ${client.name}, te contactamos desde Automotriz Online SD sobre tu orden de servicio en el Vehículo ${vehicle?.licensePlate}. Puedes seguir el estado de tu orden aquí: https://apponlinesd.up.railway.app/client`
     } else if (whatsappOption === 'quick-quote') {

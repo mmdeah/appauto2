@@ -768,7 +768,7 @@ TOTAL: ${formatCurrency(order.quotation.total)}
             }
         })
         if (review.generalObservations && review.generalObservations.trim() !== '') {
-            messageText += `\n*Observaciones:*\n${review.generalObservations}\n`
+            messageText += `\n*HALLAZGOS Y DIAGNÓSTICO TÉCNICO:*\n${review.generalObservations}\n`
         }
         messageText += `\n`
     }

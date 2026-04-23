@@ -10,11 +10,12 @@ import { getServiceOrderById, getPreventiveReviewByOrderId, updateQuotation, upd
 import type { ServiceOrder, PreventiveReview, Quotation, QuotationItem, Vehicle, Client } from "@/lib/types"
 import { toast } from "sonner"
 import { useParams, useRouter } from "next/navigation"
-import { CheckCircle, AlertTriangle, FileText, Plus, XCircle, Wrench, Package, PackagePlus, Trash2, User, Car, Phone, Mail, CreditCard, Calendar, ArrowLeft, Hammer, TrendingDown, MessageCircle } from "lucide-react"
+import { CheckCircle, AlertTriangle, FileText, Plus, XCircle, Wrench, Package, PackagePlus, Trash2, User, Car, Phone, Mail, CreditCard, Calendar, ArrowLeft, Hammer, TrendingDown, MessageCircle, Edit3 } from "lucide-react"
 import Link from "next/link"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { CurrencyInput } from "@/components/currency-input"
+import { Textarea } from "@/components/ui/textarea"
 
 export default function AdminPreventiveReview() {
   const { id } = useParams()
@@ -35,6 +36,7 @@ export default function AdminPreventiveReview() {
   
   const [loading, setLoading] = useState(true)
   const [converting, setConverting] = useState(false)
+  const [editableObservations, setEditableObservations] = useState("")
 
   useEffect(() => {
     if (id) loadData(id as string)
@@ -110,6 +112,7 @@ export default function AdminPreventiveReview() {
         if (savedReview.additionalAdminParts) {
            setAdditionalParts(savedReview.additionalAdminParts.map(p => ({ ...p, quantity: "1", price: p.price.toString(), isPending: false })))
         }
+        setEditableObservations(savedReview.generalObservations || "")
       }
     } catch (e) {
       toast.error("Error al cargar datos")
@@ -277,11 +280,15 @@ export default function AdminPreventiveReview() {
 
       await updateQuotation(order.id, newQuotation)
       
-      // Update review status to quoted
+      // Update review status to quoted and save edited observations
       await fetch(`/api/preventive-reviews/${review.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...review, status: 'quoted' })
+        body: JSON.stringify({ 
+          ...review, 
+          status: 'quoted',
+          generalObservations: editableObservations 
+        })
       })
 
       // Update Service Order state if it was still in reception/diagnosis
@@ -590,10 +597,22 @@ export default function AdminPreventiveReview() {
                 )
               })}
 
-              {review.generalObservations && (
-                <Card>
-                  <CardHeader><CardTitle className="text-sm">Observaciones del Técnico</CardTitle></CardHeader>
-                  <CardContent><p className="text-sm text-slate-700 italic border-l-4 border-slate-300 pl-4 py-1">{review.generalObservations}</p></CardContent>
+              {review && (
+                <Card className="border-blue-200 shadow-sm overflow-hidden">
+                  <div className="bg-blue-50 px-4 py-2 border-b border-blue-100 flex items-center justify-between">
+                    <CardTitle className="text-xs font-bold text-blue-800 uppercase flex items-center gap-2">
+                      <Edit3 className="h-4 w-4" /> Observaciones y Diagnóstico Final
+                    </CardTitle>
+                  </div>
+                  <CardContent className="p-4">
+                    <Label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Este texto aparecerá en el reporte del cliente</Label>
+                    <Textarea 
+                      className="min-h-[150px] text-sm bg-white" 
+                      value={editableObservations} 
+                      onChange={(e) => setEditableObservations(e.target.value)}
+                      placeholder="Redacte aquí el diagnóstico final..."
+                    />
+                  </CardContent>
                 </Card>
               )}
             </div>

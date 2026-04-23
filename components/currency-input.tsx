@@ -41,8 +41,8 @@ export function CurrencyInput({
   };
 
   return (
-    <div className="relative">
-      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+    <div className="relative w-full">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
         $
       </span>
       <Input
@@ -51,9 +51,9 @@ export function CurrencyInput({
         onChange={handleChange}
         placeholder={placeholder}
         disabled={disabled}
-        className={`pl-7 pr-12 ${className}`}
+        className={`pl-7 pr-14 ${className}`}
       />
-      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground/60 select-none">
         COP
       </span>
     </div>

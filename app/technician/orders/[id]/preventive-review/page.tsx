@@ -10,11 +10,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { getServiceOrderById, getChecklistCategories, savePreventiveReview } from "@/lib/db"
-import type { ServiceOrder, ChecklistCategory, PreventiveReview, DTCCode, ReviewItem } from "@/lib/types"
+import { getServiceOrderById, getChecklistCategories, savePreventiveReview, getSpecialServices } from "@/lib/db"
+import type { ServiceOrder, ChecklistCategory, PreventiveReview, DTCCode, ReviewItem, SpecialService } from "@/lib/types"
 import { toast } from "sonner"
 import { useParams, useRouter } from "next/navigation"
-import { Plus, Trash2, Check, AlertTriangle, XCircle, Wrench, Package } from "lucide-react"
+import { Plus, Trash2, Check, AlertTriangle, XCircle, Wrench, Package, DollarSign, Info } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { CurrencyInput } from "@/components/currency-input"
 
 interface ReviewItemState {
   status: 'ok' | 'warning' | 'urgent' | null;
@@ -44,6 +46,15 @@ export default function TechnicianPreventiveReview() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
+  // Servicios Especiales
+  const [specialServices, setSpecialServices] = useState<SpecialService[]>([])
+  const [selectedSpecials, setSelectedSpecials] = useState<Record<string, boolean>>({})
+  const [specialPrices, setSpecialPrices] = useState<Record<string, number>>({})
+
+  // Diálogo de Finalización
+  const [isFinishDialogOpen, setIsFinishDialogOpen] = useState(false)
+  const [technicianFinalNote, setTechnicianFinalNote] = useState("")
+
   useEffect(() => {
     if (id) loadData(id as string)
   }, [id])
@@ -56,6 +67,9 @@ export default function TechnicianPreventiveReview() {
 
       const cats = await getChecklistCategories()
       setCategories(cats)
+
+      const specials = await getSpecialServices()
+      setSpecialServices(specials)
 
       // Initialize states
       const initialItems: Record<string, Record<string, ReviewItemState>> = {}
@@ -154,6 +168,21 @@ export default function TechnicianPreventiveReview() {
     e.target.select();
   }
 
+  const toggleSpecialService = (id: string) => {
+    setSelectedSpecials(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }))
+    // Si se activa, inicializar precio en 0 si no existe
+    if (!selectedSpecials[id] && !specialPrices[id]) {
+      setSpecialPrices(prev => ({ ...prev, [id]: 0 }))
+    }
+  }
+
+  const handleFinishClick = () => {
+    setIsFinishDialogOpen(true)
+  }
+
   const handleSave = async () => {
     if (!order) return
     setSaving(true)
@@ -175,6 +204,19 @@ export default function TechnicianPreventiveReview() {
           laborCost: stateStatus !== 'ok' && iState.laborCost ? parseFloat(iState.laborCost) : 0
         }
       })
+
+      // AGREGAR SERVICIOS ESPECIALES DE ESTA CATEGORIA
+      specialServices
+        .filter(s => s.categoryName === cat.title && selectedSpecials[s.id])
+        .forEach(s => {
+          reviewItems.push({
+            id: `special-${s.id}`,
+            name: s.name,
+            status: 'urgent', // Forzamos para que aparezca en cotización
+            needsPart: false,
+            laborCost: specialPrices[s.id] || 0
+          })
+        })
 
       // Build DTCs if applicable
       let dtcs: DTCCode[] = []
@@ -200,12 +242,13 @@ export default function TechnicianPreventiveReview() {
       serviceOrderId: order.id,
       status: globalNeedsPart ? 'pending_admin' : 'quoted',
       categories: finalCategories,
-      generalObservations: generalObservations
+      generalObservations: `${generalObservations}\n\n*OBSERVACIÓN FINAL TÉCNICO:* ${technicianFinalNote}`.trim()
     }
 
     try {
       await savePreventiveReview(reviewDoc)
       toast.success("Revisión guardada exitosamente")
+      setIsFinishDialogOpen(false)
       router.push(`/technician/orders/${order.id}`)
     } catch (e) {
       toast.error("Error al guardar la revisión")
@@ -399,15 +442,97 @@ export default function TechnicianPreventiveReview() {
                  value={generalObservations}
                  onChange={(e) => setGeneralObservations(e.target.value)}
                />
-               <div className="mt-6 flex justify-end">
-                 <Button className="bg-green-600 hover:bg-green-700 text-white w-full md:w-auto" size="lg" onClick={handleSave} disabled={saving}>
-                   <Check className="h-5 w-5 mr-2" />
-                   {saving ? "Registrando..." : "Guardar Revisión y Continuar"}
-                 </Button>
-               </div>
             </CardContent>
           </Card>
+
+          {/* SERVICIOS ESPECIALES */}
+          {specialServices.length > 0 && (
+            <Card className="mt-6 border-blue-100 shadow-sm overflow-hidden">
+               <div className="bg-blue-600 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                 <Wrench className="h-4 w-4" /> Servicios Especiales Recomendados
+               </div>
+               <CardContent className="p-4 bg-blue-50/30">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {specialServices.map((service) => (
+                      <div key={service.id} className={`p-4 rounded-xl border transition-all ${selectedSpecials[service.id] ? 'bg-white border-blue-300 shadow-md scale-[1.02]' : 'bg-white/50 border-slate-200 opacity-70'}`}>
+                        <div className="flex items-center gap-3">
+                           <Checkbox 
+                             id={`special-${service.id}`} 
+                             checked={selectedSpecials[service.id]}
+                             onCheckedChange={() => toggleSpecialService(service.id)}
+                             className="h-5 w-5"
+                           />
+                           <Label htmlFor={`special-${service.id}`} className="font-bold text-slate-700 cursor-pointer flex-1">
+                             {service.name}
+                           </Label>
+                        </div>
+                        
+                        {selectedSpecials[service.id] && (
+                          <div className="mt-3 pl-8 animate-in fade-in slide-in-from-left-2 duration-300">
+                             <Label className="text-[10px] font-black text-blue-600 uppercase mb-1 block">¿Cuál es el valor de este servicio?</Label>
+                             <div className="flex items-center gap-2">
+                               <CurrencyInput 
+                                 value={specialPrices[service.id] || 0}
+                                 onChange={(val) => setSpecialPrices(prev => ({ ...prev, [service.id]: val }))}
+                                 className="h-9 bg-white border-blue-200 focus:ring-blue-500"
+                               />
+                               <div className="bg-blue-100 text-blue-700 p-2 rounded-lg" title="Este valor se añadirá a la cotización">
+                                 <Info className="h-4 w-4" />
+                               </div>
+                             </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+               </CardContent>
+            </Card>
+          )}
+
+          <div className="mt-8 flex justify-end">
+            <Button className="bg-green-600 hover:bg-green-700 text-white w-full md:w-auto h-14 px-10 text-lg font-bold shadow-lg shadow-green-100" onClick={handleFinishClick} disabled={saving}>
+              <Check className="h-6 w-6 mr-2" />
+              {saving ? "Registrando..." : "Guardar Revisión y Finalizar"}
+            </Button>
+          </div>
         </div>
+
+        {/* DIALOGO DE OBSERVACION FINAL */}
+        <Dialog open={isFinishDialogOpen} onOpenChange={setIsFinishDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-green-700">
+                <Info className="h-5 w-5" /> ¿Alguna observación final?
+              </DialogTitle>
+              <DialogDescription>
+                Esta nota será visible para el administrador y se incluirá en el reporte que recibe el cliente por WhatsApp.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Textarea 
+                placeholder="Escriba aquí cualquier detalle importante para el cliente o el admin..."
+                className="min-h-[150px] text-base"
+                value={technicianFinalNote}
+                onChange={(e) => setTechnicianFinalNote(e.target.value)}
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setIsFinishDialogOpen(false)} disabled={saving}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSave} disabled={saving} className="bg-green-600 hover:bg-green-700">
+                {saving ? (
+                   <>
+                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                     Guardando...
+                   </>
+                ) : (
+                   "Confirmar y Enviar"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DashboardLayout>
     </ProtectedRoute>
   )
