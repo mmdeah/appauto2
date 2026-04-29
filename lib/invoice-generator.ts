@@ -1273,3 +1273,229 @@ function getStateLabel(state: string): string {
   return labels[state] || state
 }
 
+/**
+ * Genera el HTML del Acta de Recepción
+ */
+export function generateReceptionHTML(
+  client: Client,
+  vehicle: Vehicle,
+  receptionData: { mileage: number; notes: string; services: string[] },
+  orderNumber?: string
+): string {
+  const template = getReceptionTemplate()
+
+  const formatDate = (date: string | Date) => {
+    const d = typeof date === "string" ? new Date(date) : date
+    return d.toLocaleDateString("es-CO", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })
+  }
+
+  const formatDateTime = (date: string | Date) => {
+    const d = typeof date === "string" ? new Date(date) : date
+    return d.toLocaleString("es-CO", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
+  let servicesList = ""
+  if (receptionData.services && receptionData.services.length > 0) {
+    servicesList = "<ul>"
+    receptionData.services.forEach((s) => {
+      servicesList += `<li>${escapeHtml(s)}</li>`
+    })
+    servicesList += "</ul>"
+  } else {
+    servicesList = "<p><em>Ningún servicio especificado.</em></p>"
+  }
+
+  let html = template
+    .replace(/\{\{ORDER_NUMBER\}\}/g, orderNumber || `REC-${Date.now().toString(36).toUpperCase().slice(-6)}`)
+    .replace(/\{\{ISSUE_DATE\}\}/g, formatDate(new Date()))
+    .replace(/\{\{CLIENT_NAME\}\}/g, escapeHtml(client.name))
+    .replace(/\{\{CLIENT_ID_NUMBER\}\}/g, escapeHtml(client.idNumber))
+    .replace(/\{\{CLIENT_PHONE\}\}/g, escapeHtml(client.phone))
+    .replace(/\{\{CLIENT_EMAIL\}\}/g, escapeHtml(client.email))
+    .replace(/\{\{VEHICLE_BRAND\}\}/g, escapeHtml(vehicle.brand))
+    .replace(/\{\{VEHICLE_MODEL\}\}/g, escapeHtml(vehicle.model))
+    .replace(/\{\{VEHICLE_LICENSE_PLATE\}\}/g, escapeHtml(vehicle.licensePlate))
+    .replace(/\{\{VEHICLE_YEAR\}\}/g, vehicle.year.toString())
+    .replace(/\{\{VEHICLE_MILEAGE\}\}/g, receptionData.mileage.toLocaleString("es-CO") + " km")
+    .replace(/\{\{SERVICES_LIST\}\}/g, servicesList)
+    .replace(/\{\{NOTES\}\}/g, receptionData.notes ? escapeHtml(receptionData.notes).replace(/\n/g, "<br>") : "<em>Sin notas adicionales.</em>")
+    .replace(/\{\{GENERATION_DATE\}\}/g, formatDateTime(new Date()))
+
+  return html
+}
+
+function getReceptionTemplate(): string {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acta de Recepción - {{ORDER_NUMBER}}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #1a1a1a;
+      background: #fff;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #2563eb;
+    }
+    .document-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #2563eb;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 25px;
+    }
+    .info-box {
+      padding: 0;
+    }
+    .info-box h3 {
+      font-size: 12px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #e5e5e5;
+      padding-bottom: 6px;
+    }
+    .info-box p {
+      margin: 5px 0;
+      font-size: 11px;
+      color: #4a4a4a;
+    }
+    .section {
+      margin-bottom: 25px;
+      padding: 15px;
+      background: #f8fafc;
+      border-left: 4px solid #2563eb;
+      border-radius: 4px;
+    }
+    .section h3 {
+      font-size: 11px;
+      font-weight: 700;
+      color: #2563eb;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+    .section ul {
+      margin-left: 20px;
+      font-size: 11px;
+      color: #4a4a4a;
+    }
+    .section ul li {
+      margin-bottom: 4px;
+    }
+    .signatures {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      margin-top: 50px;
+    }
+    .signature-line {
+      border-top: 1px solid #1a1a1a;
+      padding-top: 5px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 11px;
+    }
+    .footer {
+      margin-top: 35px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e5e5;
+      text-align: center;
+      color: #999;
+      font-size: 9px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="document-title">ACTA DE RECEPCIÓN DE VEHÍCULO</div>
+      <p style="margin-top: 5px; font-weight: 500;">No. {{ORDER_NUMBER}} | Fecha: {{ISSUE_DATE}}</p>
+    </div>
+
+    <div class="info-grid">
+      <div class="info-box">
+        <h3>Datos del Cliente</h3>
+        <p><strong>Nombre:</strong> {{CLIENT_NAME}}</p>
+        <p><strong>Cédula:</strong> {{CLIENT_ID_NUMBER}}</p>
+        <p><strong>Teléfono:</strong> {{CLIENT_PHONE}}</p>
+        <p><strong>Email:</strong> {{CLIENT_EMAIL}}</p>
+      </div>
+      <div class="info-box">
+        <h3>Datos del Vehículo</h3>
+        <p><strong>Marca / Modelo:</strong> {{VEHICLE_BRAND}} {{VEHICLE_MODEL}}</p>
+        <p><strong>Placa:</strong> {{VEHICLE_LICENSE_PLATE}}</p>
+        <p><strong>Año:</strong> {{VEHICLE_YEAR}}</p>
+        <p><strong>Kilometraje:</strong> {{VEHICLE_MILEAGE}}</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Servicios a Realizar</h3>
+      {{SERVICES_LIST}}
+    </div>
+
+    <div class="section">
+      <h3>Notas y Observaciones del Vehículo</h3>
+      <p style="font-size: 11px; color: #4a4a4a;">{{NOTES}}</p>
+    </div>
+
+    <div class="signatures">
+      <div class="signature-line">
+        Firma del Cliente<br>
+        {{CLIENT_NAME}}<br>
+        CC: {{CLIENT_ID_NUMBER}}
+      </div>
+      <div class="signature-line">
+        Firma Taller Automotriz<br>
+        Recibido Por
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>El cliente autoriza el ingreso de su vehículo para revisión y diagnóstico técnico.</p>
+      <p>Documento generado el {{GENERATION_DATE}}</p>
+    </div>
+  </div>
+</body>
+</html>`
+}
+

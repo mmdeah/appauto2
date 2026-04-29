@@ -6,7 +6,7 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Car, Users, Wrench, TrendingUp, DollarSign, TrendingDown, Search, Filter, AlertCircle, CheckCircle2, XCircle, User, Calendar, ListChecks, CheckCircle, Clock, Trash2, Package, Star, FileText, ChevronRight, MessageCircle } from "lucide-react"
+import { Plus, Car, Users, Wrench, TrendingUp, DollarSign, TrendingDown, Search, Filter, AlertCircle, CheckCircle2, XCircle, User, Calendar, ListChecks, CheckCircle, Clock, Trash2, Package, Star, FileText, ChevronRight, MessageCircle, ClipboardList } from "lucide-react"
 import { getServiceOrders, getVehicles, getUsers, getClients, getDashboardStats, getReports, updateReport, deleteReport, updateServiceOrder, createStateHistory, getRatings, updateRating, getStateHistoryByOrderId, getPreventiveReviews } from "@/lib/db"
 import { SERVICE_STATE_LABELS, SERVICE_STATE_COLORS, formatCurrency } from "@/lib/utils-service"
 import type { ServiceOrder, Vehicle, User, Client, Report, ServiceState, PreventiveReview } from "@/lib/types"
@@ -598,6 +598,12 @@ Su vehículo se encuentra listo para el retiro.`
               <Link href="/admin/quick-quotation">
                 <FileText className="h-4 w-4 mr-2" />
                 Cotización Rápida
+              </Link>
+            </Button>
+            <Button variant="outline" asChild size="lg" className="shadow-sm">
+              <Link href="/admin/quick-reception">
+                <ClipboardList className="h-4 w-4 mr-2" />
+                Recepción Rápida
               </Link>
             </Button>
             <Button variant="outline" asChild size="lg" className="shadow-sm">
